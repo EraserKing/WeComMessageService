@@ -6,27 +6,77 @@ namespace DebtServices.Services
 {
     public class EastmoneyService
     {
-        private HttpClient _httpClient { get; set; } = new HttpClient();
+        private readonly ILogger<EastmoneyService> Logger;
 
-        public async Task<EastmoneyModel> GetFullResource()
+        private DateTime LastFetchedDateTime { get; set; }
+        private EastmoneyModel Resource { get; set; }
+
+        public EastmoneyService(ILogger<EastmoneyService> logger)
         {
-            string response = await _httpClient.GetStringAsync("https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUBLIC_START_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_BOND_CB_LIST&quoteColumns=f2~01~CONVERT_STOCK_CODE~CONVERT_STOCK_PRICE%2Cf235~10~SECURITY_CODE~TRANSFER_PRICE%2Cf236~10~SECURITY_CODE~TRANSFER_VALUE%2Cf2~10~SECURITY_CODE~CURRENT_BOND_PRICE%2Cf237~10~SECURITY_CODE~TRANSFER_PREMIUM_RATIO%2Cf239~10~SECURITY_CODE~RESALE_TRIG_PRICE%2Cf240~10~SECURITY_CODE~REDEEM_TRIG_PRICE%2Cf23~01~CONVERT_STOCK_CODE~PBV_RATIO&columns=ALL");
-
-            if (response == null)
-            {
-                EastmoneyModel emm = JsonSerializer.Deserialize<EastmoneyModel>(response);
-                return emm;
-            }
-            else
-            {
-                return null;
-            }
+            Logger = logger;
         }
 
-        public async Task<EastmoneyData[]> GetNewDebtToday()
+        public async Task<EastmoneyModel> GetFullResource(bool forceRefresh = false)
         {
-            EastmoneyModel emm = await GetFullResource();
-            return emm.result.data.Where(e => DateOnly.Parse(e.PUBLIC_START_DATE) == DateOnly.FromDateTime(DateTime.Today)).ToArray();
+            if (forceRefresh || LastFetchedDateTime.Date < DateTime.Today || Resource == null)
+            {
+                int retry = 0;
+                while (retry++ < 3)
+                {
+                    try
+                    {
+                        HttpClient httpClient = new HttpClient();
+                        httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36 Edg/99.0.1150.39");
+                        httpClient.DefaultRequestHeaders.Add("Accept", "*/*");
+
+                        Logger.LogInformation("Accessing Eastmoney Server");
+                        var response = await httpClient.GetAsync("https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUBLIC_START_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_BOND_CB_LIST&columns=CONVERT_STOCK_CODE,SECURITY_CODE,SECURITY_NAME_ABBR,LISTING_DATE,PUBLIC_START_DATE&quoteColumns=f2~01~CONVERT_STOCK_CODE~CONVERT_STOCK_PRICE,f235~10~SECURITY_CODE~TRANSFER_PRICE,f236~10~SECURITY_CODE~TRANSFER_VALUE,f2~10~SECURITY_CODE~CURRENT_BOND_PRICE,f237~10~SECURITY_CODE~TRANSFER_PREMIUM_RATIO");
+                        Logger.LogInformation("Response get from server, will deserialize");
+                        var content = await response.Content.ReadAsStringAsync();
+                        Logger.LogInformation(content);
+                        if (content != null)
+                        {
+                            Resource = JsonSerializer.Deserialize<EastmoneyModel>(content);
+                            LastFetchedDateTime = DateTime.Now;
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogInformation(ex.Message);
+                        Logger.LogInformation(ex.StackTrace);
+                        Logger.LogError("Unable to connect to EastMoney", ex);
+                        Thread.Sleep(5000);
+                    }
+                }
+            }
+            return Resource;
+        }
+
+        public static DateTime GetChinaDateTimeNow()
+        {
+            DateTime utcNow = DateTime.UtcNow;
+            TimeZoneInfo timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZoneInfo);
+        }
+
+        public static DateOnly GetChinaDateToday()
+        {
+            return DateOnly.FromDateTime(GetChinaDateTimeNow());
+        }
+
+        public async Task<EastmoneyData[]> GetNewReleasesAsync(DateOnly? date = null)
+        {
+            Logger.LogInformation($"Get new releases of {date.ToString() ?? "TODAY"}");
+            DateOnly today = date ?? GetChinaDateToday();
+            return (await GetFullResource())?.result.data.Where(e => !string.IsNullOrWhiteSpace(e.PUBLIC_START_DATE) && DateOnly.FromDateTime(DateTime.Parse(e.PUBLIC_START_DATE)) == today).ToArray();
+        }
+
+        public async Task<EastmoneyData[]> GetNewListingAsync(DateOnly? date = null)
+        {
+            Logger.LogInformation($"Get new listings of {date.ToString() ?? "TODAY"}");
+            DateOnly today = date ?? GetChinaDateToday();
+            return (await GetFullResource())?.result.data.Where(e => !string.IsNullOrWhiteSpace(e.LISTING_DATE) && DateOnly.FromDateTime(DateTime.Parse(e.LISTING_DATE)) == today).ToArray();
         }
     }
 }
