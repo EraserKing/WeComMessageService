@@ -1,16 +1,26 @@
 ﻿using DebtServices.Models;
+using DebtServices.Processors.Interfaces;
 using DebtServices.Services;
 using System.Text.RegularExpressions;
 
-namespace DebtServices.MessageProcessors
+namespace DebtServices.Processors
 {
-    public class DebtMessageProcessor
+    public class DebtMessageProcessor : IProcessor
     {
         private Regex SubscribeRegex = new Regex(@"^订阅 ?(\d+)$", RegexOptions.Compiled);
         private Regex UnsubscribeRegex = new Regex(@"^取消订阅 ?(\d+)$", RegexOptions.Compiled);
         private Regex QueryRegex = new Regex(@"^查询 ?(\d+)$", RegexOptions.Compiled);
 
-        public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, DebtSubscriptionService debtSubscriptionService, WeComService weComService)
+        private readonly DebtSubscriptionService DebtSubscriptionService;
+
+        public DebtMessageProcessor(DebtSubscriptionService debtSubscriptionService)
+        {
+            DebtSubscriptionService = debtSubscriptionService;
+        }
+
+        public ulong GetProcessorAgentId() => 1000003;
+
+        public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, WeComService weComService)
         {
             Match match;
             match = SubscribeRegex.Match(receiveMessage.Content);
@@ -18,7 +28,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
+                    var responseMessage = await DebtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -29,7 +39,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
+                    var responseMessage = await DebtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -40,7 +50,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
+                    var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -50,7 +60,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING);
+                    var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -60,7 +70,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
+                    var responseMessage = await DebtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -70,7 +80,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
+                    var responseMessage = await DebtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -80,7 +90,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
+                    var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -90,7 +100,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.RELEASE);
+                    var responseMessage = await DebtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.RELEASE);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;
@@ -100,7 +110,7 @@ namespace DebtServices.MessageProcessors
             {
                 new Thread(async () =>
                 {
-                    var responseMessage = await debtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.LISTING);
+                    var responseMessage = await DebtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.LISTING);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
                 }).Start();
                 return null;

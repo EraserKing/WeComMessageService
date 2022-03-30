@@ -7,14 +7,14 @@ namespace DebtServices.Services
     public class NotificationService : IHostedService, IDisposable
     {
         private readonly ILogger<NotificationService> Logger;
-        private readonly IServiceProvider Services;
+        private readonly IServiceProvider ServiceProvider;
 
         private Timer NewReleaseTimer;
         private Timer NewListingTimer;
 
-        public NotificationService(IServiceProvider services, ILogger<NotificationService> logger)
+        public NotificationService(IServiceProvider serviceProvider, ILogger<NotificationService> logger)
         {
-            Services = services;
+            ServiceProvider = serviceProvider;
             Logger = logger;
         }
 
@@ -37,18 +37,18 @@ namespace DebtServices.Services
                 NewReleaseTimer.Dispose();
             }
 
-            using var servicesScope = Services.CreateScope();
-            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+            using var servicesScope = ServiceProvider.CreateScope();
+            var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             NewReleaseTimer = new Timer(async (param) =>
             {
-                using var timerServicesScope = Services.CreateScope();
+                using var timerServicesScope = ServiceProvider.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start release routine");
                 var newReleases = await CheckNewReleasesAsync();
                 await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
                 Logger.LogInformation("NOTIFICATION: Finish release routine");
-            }, null, GetTimeSpanFromNextUtcHourMinute(weComConfiguration.NewReleaseCheckHour, weComConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
-            Logger.LogInformation($"NOTIFICATION: New release timer created at UTC {weComConfiguration.NewReleaseCheckHour}:{weComConfiguration.NewReleaseCheckMinute}");
+            }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
+            Logger.LogInformation($"NOTIFICATION: New release timer created at UTC {debtServiceConfiguration.NewReleaseCheckHour}:{debtServiceConfiguration.NewReleaseCheckMinute}");
         }
 
         public void CreateListingTimer()
@@ -60,12 +60,12 @@ namespace DebtServices.Services
                 NewListingTimer.Dispose();
             }
 
-            using var servicesScope = Services.CreateScope();
-            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+            using var servicesScope = ServiceProvider.CreateScope();
+            var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             NewListingTimer = new Timer(async (param) =>
             {
-                using var timerServicesScope = Services.CreateScope();
+                using var timerServicesScope = ServiceProvider.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start listing routine");
                 var newListings = await CheckNewListingsAsync();
                 foreach (var newListing in newListings)
@@ -73,16 +73,16 @@ namespace DebtServices.Services
                     await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newListing);
                 }
                 Logger.LogInformation("NOTIFICATION: Finish listing routine");
-            }, null, GetTimeSpanFromNextUtcHourMinute(weComConfiguration.NewListingCheckHour, weComConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
-            Logger.LogInformation($"NOTIFICATION: New listing timer created at UTC {weComConfiguration.NewListingCheckHour}:{weComConfiguration.NewListingCheckMinute}");
+            }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
+            Logger.LogInformation($"NOTIFICATION: New listing timer created at UTC {debtServiceConfiguration.NewListingCheckHour}:{debtServiceConfiguration.NewListingCheckMinute}");
         }
 
         public async Task<IList<WeComRegularMessage>> CheckNewListingsAsync(string userName = null)
         {
-            using var servicesScope = Services.CreateScope();
+            using var servicesScope = ServiceProvider.CreateScope();
             var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
             var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
-            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+            var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             var newListings = await eastmoneyService.GetNewListingAsync();
             if (newListings == null || newListings.Length == 0)
@@ -110,7 +110,7 @@ namespace DebtServices.Services
                 }
 
                 messages.Add(WeComRegularMessage.CreateTextCardMessage(
-                    weComConfiguration.AgentId,
+                    debtServiceConfiguration.SendByAgentId,
                     userIds,
                     "新上市",
                     newListing.MakeCardContent(),
@@ -124,10 +124,10 @@ namespace DebtServices.Services
 
         public async Task<WeComRegularMessage> CheckNewReleasesAsync(string userName = null)
         {
-            using var servicesScope = Services.CreateScope();
+            using var servicesScope = ServiceProvider.CreateScope();
             var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
             var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
-            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+            var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             var newReleases = await eastmoneyService.GetNewReleasesAsync();
             if (newReleases == null || newReleases.Length == 0)
@@ -154,7 +154,7 @@ namespace DebtServices.Services
             Logger.LogInformation($"NOTIFICATION: Collect {newReleases.Length} release to {userIds}");
 
             return WeComRegularMessage.CreateTextCardMessage(
-                    weComConfiguration.AgentId,
+                    debtServiceConfiguration.SendByAgentId,
                     userIds,
                     "新申购",
                     cardContents,

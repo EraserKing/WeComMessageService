@@ -1,29 +1,45 @@
-﻿using DebtServices.MessageProcessors;
+﻿using DebtServices.Processors;
 using DebtServices.Models;
 using DebtServices.Models.Configurations;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using DebtServices.Processors.Interfaces;
 
 namespace DebtServices.Services
 {
     public class WeComService
     {
         private readonly ILogger<WeComService> Logger;
-        private readonly WeComConfiguration WeComConfiguration;
-        private readonly DebtSubscriptionService SubscriptionService;
+        private readonly IServiceProvider ServiceProvider;
+        private readonly WeComServicesConfiguration WeComConfiguration;
 
         private Dictionary<ulong, WeComAccessToken> AccessTokenByAgent = new Dictionary<ulong, WeComAccessToken>();
 
-        private readonly DebtMessageProcessor DebtMessageProcessor;
+        private static Dictionary<ulong, Type> Processors;
+        private static object ProcessorInitializeLock = new object();
 
-        public WeComService(ILogger<WeComService> logger, IOptions<WeComConfiguration> weComConfiguration, DebtSubscriptionService subscriptionService)
+        public WeComService(ILogger<WeComService> logger, IServiceProvider serviceProvider, IOptions<WeComServicesConfiguration> weComConfiguration)
         {
             Logger = logger;
+            ServiceProvider = serviceProvider;
             WeComConfiguration = weComConfiguration.Value;
-            SubscriptionService = subscriptionService;
 
-            DebtMessageProcessor = new DebtMessageProcessor();
+            if (Processors == null)
+            {
+                Logger.LogInformation("WECOMSERVICE: Initialize processors...");
+                lock (ProcessorInitializeLock)
+                {
+                    Processors = new Dictionary<ulong, Type>();
+                    var serviceScope = serviceProvider.CreateScope();
+                    foreach (var processor in serviceScope.ServiceProvider.GetServices<IProcessor>())
+                    {
+                        ulong processorAgentId = processor.GetProcessorAgentId();
+                        Logger.LogInformation($"WECOMSERVICE: Initialize processor {processorAgentId}");
+                        Processors[processorAgentId] = processor.GetType();
+                    }
+                }
+            }
         }
 
         private async Task<string> GetAccessTokenAsync(ulong agentId)
@@ -36,7 +52,9 @@ namespace DebtServices.Services
             {
                 Logger.LogDebug("WECOMSERVICE: RECLAIM ACCESS TOKEN");
                 HttpClient client = new HttpClient();
-                var response = await client.GetStringAsync($"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={WeComConfiguration.CorpId}&corpsecret={WeComConfiguration.CorpSecret}");
+                string corpId = WeComConfiguration.AppConfigurations.First(x => x.AgentId == agentId).CorpId;
+                string corpSecret = WeComConfiguration.AppConfigurations.First(x => x.AgentId == agentId).CorpSecret;
+                var response = await client.GetStringAsync($"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpId}&corpsecret={corpSecret}");
                 WeComAccessToken newToken = JsonSerializer.Deserialize<WeComAccessToken>(response);
                 if (newToken != null)
                 {
@@ -50,21 +68,22 @@ namespace DebtServices.Services
         public async Task SendMessageAsync(WeComRegularMessage regularMessage)
         {
             HttpClient client = new HttpClient();
-            var response = await client.PostAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(WeComConfiguration.AgentId)}", JsonContent.Create(regularMessage, regularMessage.GetType()));
+            var response = await client.PostAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", JsonContent.Create(regularMessage, regularMessage.GetType()));
             response.EnsureSuccessStatusCode();
             Logger.LogInformation($"WECOMSERVICE: SEND_MESSAGE {await response.Content.ReadAsStringAsync()}");
         }
 
         public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage)
         {
-            switch (receiveMessage.AgentID)
+            if (!Processors.ContainsKey(receiveMessage.AgentID))
             {
-                case 1000003:
-                    return await DebtMessageProcessor.ReplyMessageAsync(receiveMessage, SubscriptionService, this);
-
-                default:
-                    return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, "该应用未设置对应处理程序");
+                return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, "该应用未设置对应处理程序");
             }
+
+            var serviceScope = ServiceProvider.CreateScope();
+
+            var processor = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
+            return await (processor as IProcessor).ReplyMessageAsync(receiveMessage, this);
         }
     }
 }

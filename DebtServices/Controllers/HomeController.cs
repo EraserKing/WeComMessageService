@@ -3,6 +3,7 @@ using DebtServices.Models.Configurations;
 using DebtServices.Services;
 using DebtServices.Utilities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text;
@@ -16,23 +17,42 @@ namespace DebtServices.Controllers
     [ApiController]
     public class HomeController : ControllerBase
     {
-        private readonly WeComConfiguration WeComConfiguration;
-
-        private readonly WeComService WeComService;
+        private readonly WeComServicesConfiguration WeComConfiguration;
 
         private readonly ILogger<HomeController> Logger;
 
-        private readonly WXBizMsgCrypt WxCpt;
+        private readonly WeComService WeComService;
 
-        public HomeController(IOptions<WeComConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService)
+        private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts;
+        private static object CryptsInitializeLock = new object();
+
+        public HomeController(IOptions<WeComServicesConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService)
         {
             WeComConfiguration = weComConfiguration.Value;
             WeComService = weComService;
             Logger = logger;
-            WxCpt = new WXBizMsgCrypt(
-                WeComConfiguration.Message.Token,
-                WeComConfiguration.Message.EncodingAESKey,
-                WeComConfiguration.CorpId);
+
+            if (WXBizMsgCrypts == null)
+            {
+                Logger.LogInformation("HOMESERVICE: Initialize crypts...");
+                lock (CryptsInitializeLock)
+                {
+                    WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
+                    foreach (var appConfiguration in weComConfiguration.Value.AppConfigurations)
+                    {
+                        Logger.LogInformation($"HOMESERVICE: Create crypts for {appConfiguration.AppUrlPrefix}...");
+                        WXBizMsgCrypts[appConfiguration.AppUrlPrefix] = new WXBizMsgCrypt(appConfiguration.Message.Token, appConfiguration.Message.EncodingAESKey, appConfiguration.CorpId);
+                    }
+                }
+            }
+        }
+
+        private WXBizMsgCrypt GetCryptFromRequest(HttpRequest httpRequest)
+        {
+            httpRequest.Headers.TryGetValue("X-Upstream", out var upstreamUrlValues);
+            string sourceUrl = upstreamUrlValues.Count > 0 ? string.Join(string.Empty, upstreamUrlValues) : UriHelper.GetDisplayUrl(httpRequest);
+            Logger.LogInformation($"HOMESERVICE: Get request to {sourceUrl}");
+            return WXBizMsgCrypts.First(x => sourceUrl.StartsWith(x.Key, StringComparison.OrdinalIgnoreCase)).Value;
         }
 
         [HttpGet("/")]
@@ -41,7 +61,9 @@ namespace DebtServices.Controllers
             Logger.LogInformation($"HOME: VERIFY_URL, MSG_SIGNATURE: {msg_signature} TIMESTAMP: {timestamp} NONCE: {nonce}");
 
             string sEchoStr = "";
-            var verifyRet = WxCpt.VerifyURL(msg_signature, timestamp, nonce, echostr, ref sEchoStr);
+
+            var wxCrypt = GetCryptFromRequest(Request);
+            var verifyRet = wxCrypt.VerifyURL(msg_signature, timestamp, nonce, echostr, ref sEchoStr);
 
             if (verifyRet != 0)
             {
@@ -64,7 +86,8 @@ namespace DebtServices.Controllers
 
             // Decrypt body
             string decryptedBodyString = "";
-            var decryptMsgRet = WxCpt.DecryptMsg(msg_signature, timestamp, nonce, receivedBodyString, ref decryptedBodyString);
+            var wxCrypt = GetCryptFromRequest(Request);
+            var decryptMsgRet = wxCrypt.DecryptMsg(msg_signature, timestamp, nonce, receivedBodyString, ref decryptedBodyString);
             if (decryptMsgRet != 0)
             {
                 string decryptMsgFailString = $"HOME: RECEIVE_MESSAGE ERR: DECRYPT_FAIL: {decryptMsgRet}";
@@ -95,7 +118,7 @@ namespace DebtServices.Controllers
 
             // Encrypt response
             string encryptedBodyString = "";
-            var encryptMsgRet = WxCpt.EncryptMsg(replyBodyString, timestamp, nonce, ref encryptedBodyString);
+            var encryptMsgRet = wxCrypt.EncryptMsg(replyBodyString, timestamp, nonce, ref encryptedBodyString);
 
             if (encryptMsgRet != 0)
             {
