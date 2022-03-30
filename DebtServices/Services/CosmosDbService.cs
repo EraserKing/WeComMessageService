@@ -19,59 +19,67 @@ namespace DebtServices.Services
             Failed,
         }
 
-        private DebtReminderContext DebtReminderContext { get; set; }
+        private readonly ILogger<CosmosDbService> Logger;
 
-        public CosmosDbService(IDbContextFactory<DebtReminderContext> debtReminderContext)
+        private static DebtReminderContext DebtReminderContext { get; set; }
+
+        private static object InitializeLock = new object();
+
+        public CosmosDbService(ILogger<CosmosDbService> logger, IDbContextFactory<DebtReminderContext> debtReminderContext)
         {
-            DebtReminderContext = debtReminderContext.CreateDbContext();
+            Logger = logger;
+
+            lock (InitializeLock)
+
+            {
+                logger.LogInformation("COSMOS: Initializing...");
+                DebtReminderContext ??= debtReminderContext.CreateDbContext();
+            }
         }
 
         public async Task<DbActionResult> AddItemAsync(DebtReminderModel drm)
         {
-            var existingItems = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName && x.DebtCode == drm.DebtCode && x.ReminderType == drm.ReminderType).ToArray();
-            if (existingItems.Length > 0)
+            try
             {
-                return DbActionResult.Duplicated;
-            }
-            else
-            {
-                try
+                var existingItems = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName && x.DebtCode == drm.DebtCode && x.ReminderType == drm.ReminderType).ToArray();
+                if (existingItems.Length > 0)
+                {
+                    return DbActionResult.Duplicated;
+                }
+                else
                 {
                     await DebtReminderContext.AddAsync(drm);
                     await DebtReminderContext.SaveChangesAsync();
                     return DbActionResult.Success;
                 }
-                catch (Exception ex)
-                {
-                    return DbActionResult.Failed;
-                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Unable to add item", ex);
+                return DbActionResult.Failed;
             }
         }
 
         public async Task<DbActionResult> DeleteItemAsync(DebtReminderModel drm)
         {
-            var existingItems = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName
-            && (x.DebtCode == drm.DebtCode || x.ConvertStockCode == drm.ConvertStockCode)
-            && x.ReminderType == drm.ReminderType).ToArray();
-            if (existingItems.Length > 0)
+            var existingItemsQuery = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName
+                && (x.DebtCode == drm.DebtCode || x.ConvertStockCode == drm.ConvertStockCode)
+                && x.ReminderType == drm.ReminderType);
+            try
             {
-                try
+                bool isDeleted = false;
+                foreach (var existingItem in existingItemsQuery)
                 {
-                    foreach (var existingItem in existingItems)
-                    {
-                        DebtReminderContext.Remove(existingItem);
-                    }
-                    await DebtReminderContext.SaveChangesAsync();
-                    return DbActionResult.Success;
+                    DebtReminderContext.Remove(existingItem);
+                    isDeleted = true;
                 }
-                catch (Exception ex)
-                {
-                    return DbActionResult.Failed;
-                }
+                await DebtReminderContext.SaveChangesAsync();
+                return isDeleted ? DbActionResult.Success : DbActionResult.NotAvailable;
             }
-            else
+            catch (Exception ex)
             {
-                return DbActionResult.NotAvailable;
+                Logger.LogError("Unable to delete item", ex);
+                return DbActionResult.Failed;
             }
         }
 
@@ -94,6 +102,7 @@ namespace DebtServices.Services
             }
             catch (Exception ex)
             {
+                Logger.LogError("Unable to query item(s)", ex);
                 return (DbActionResult.Failed, null);
             }
         }

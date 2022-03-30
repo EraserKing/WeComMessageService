@@ -10,7 +10,7 @@ namespace DebtServices.MessageProcessors
         private Regex UnsubscribeRegex = new Regex(@"^取消订阅 ?(\d+)$", RegexOptions.Compiled);
         private Regex QueryRegex = new Regex(@"^查询 ?(\d+)$", RegexOptions.Compiled);
 
-        public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, DebtSubscriptionService debtSubscriptionService, WeComService weComService, NotificationService notificationService)
+        public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, DebtSubscriptionService debtSubscriptionService, WeComService weComService)
         {
             Match match;
             match = SubscribeRegex.Match(receiveMessage.Content);

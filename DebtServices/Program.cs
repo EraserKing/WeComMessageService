@@ -32,11 +32,12 @@ builder.Services.AddDbContextFactory<DebtReminderContext>(options => options.Use
 builder.Services.Configure<WeComConfiguration>(builder.Configuration.GetSection("WeCom"));
 builder.Services.Configure<CosmosDbConfiguration>(builder.Configuration.GetSection("CosmosDb"));
 
-builder.Services.AddSingleton<CosmosDbService>();
-builder.Services.AddSingleton<WeComService>();
-builder.Services.AddSingleton<DebtSubscriptionService>();
-builder.Services.AddSingleton<EastmoneyService>();
-builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddScoped<CosmosDbService>();
+builder.Services.AddScoped<WeComService>();
+builder.Services.AddScoped<DebtSubscriptionService>();
+builder.Services.AddScoped<EastmoneyService>();
+
+builder.Services.AddHostedService<NotificationService>();
 
 var app = builder.Build();
 

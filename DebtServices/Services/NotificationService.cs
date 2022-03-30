@@ -4,23 +4,18 @@ using Microsoft.Extensions.Options;
 
 namespace DebtServices.Services
 {
-    public class NotificationService
+    public class NotificationService : IHostedService, IDisposable
     {
         private readonly ILogger<NotificationService> Logger;
-        private readonly WeComConfiguration WeComConfiguration;
-        private readonly EastmoneyService EastmoneyService;
-        private readonly CosmosDbService CosmosDbService;
+        private readonly IServiceProvider Services;
 
         private Timer NewReleaseTimer;
         private Timer NewListingTimer;
 
-        public NotificationService(ILogger<NotificationService> logger, IOptions<WeComConfiguration> weComConfiguration,
-            EastmoneyService eastmoneyService, CosmosDbService cosmosDbService)
+        public NotificationService(IServiceProvider services, ILogger<NotificationService> logger)
         {
+            Services = services;
             Logger = logger;
-            WeComConfiguration = weComConfiguration.Value;
-            EastmoneyService = eastmoneyService;
-            CosmosDbService = cosmosDbService;
         }
 
         private TimeSpan GetTimeSpanFromNextUtcHourMinute(int hour, int minute)
@@ -33,51 +28,70 @@ namespace DebtServices.Services
             return startupDelay;
         }
 
-        public void CreateReleaseTimer(Func<WeComRegularMessage, Task> sendMessageAction)
+        public void CreateReleaseTimer()
         {
             if (NewReleaseTimer != null)
             {
+                Logger.LogInformation("NOTIFICATION: Current new release timer is not null. Dispose and re-create.");
+                NewReleaseTimer.Change(Timeout.Infinite, 0);
                 NewReleaseTimer.Dispose();
             }
 
+            using var servicesScope = Services.CreateScope();
+            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+
             NewReleaseTimer = new Timer(async (param) =>
             {
+                using var timerServicesScope = Services.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start release routine");
                 var newReleases = await CheckNewReleasesAsync();
-                await sendMessageAction(newReleases);
+                await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
                 Logger.LogInformation("NOTIFICATION: Finish release routine");
-            }, null, GetTimeSpanFromNextUtcHourMinute(WeComConfiguration.NewReleaseCheckHour, WeComConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
+            }, null, GetTimeSpanFromNextUtcHourMinute(weComConfiguration.NewReleaseCheckHour, weComConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
+            Logger.LogInformation($"NOTIFICATION: New release timer created at UTC {weComConfiguration.NewReleaseCheckHour}:{weComConfiguration.NewReleaseCheckMinute}");
         }
 
-        public void CreateListingTimer(Func<WeComRegularMessage, Task> sendMessageAction)
+        public void CreateListingTimer()
         {
             if (NewListingTimer != null)
             {
+                Logger.LogInformation("NOTIFICATION: Current new listing timer is not null. Dispose and re-create.");
+                NewListingTimer.Change(Timeout.Infinite, 0);
                 NewListingTimer.Dispose();
             }
 
+            using var servicesScope = Services.CreateScope();
+            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+
             NewListingTimer = new Timer(async (param) =>
             {
+                using var timerServicesScope = Services.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start listing routine");
-                var newReleases = await CheckNewListingsAsync();
-                foreach(var newRelease in newReleases)
+                var newListings = await CheckNewListingsAsync();
+                foreach (var newListing in newListings)
                 {
-                    await sendMessageAction(newRelease);
+                    await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newListing);
                 }
                 Logger.LogInformation("NOTIFICATION: Finish listing routine");
-            }, null, GetTimeSpanFromNextUtcHourMinute(WeComConfiguration.NewListingCheckHour, WeComConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
+            }, null, GetTimeSpanFromNextUtcHourMinute(weComConfiguration.NewListingCheckHour, weComConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
+            Logger.LogInformation($"NOTIFICATION: New listing timer created at UTC {weComConfiguration.NewListingCheckHour}:{weComConfiguration.NewListingCheckMinute}");
         }
 
         public async Task<IList<WeComRegularMessage>> CheckNewListingsAsync(string userName = null)
         {
-            var newListings = await EastmoneyService.GetNewListingAsync();
+            using var servicesScope = Services.CreateScope();
+            var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
+            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
+            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+
+            var newListings = await eastmoneyService.GetNewListingAsync();
             if (newListings == null || newListings.Length == 0)
             {
                 Logger.LogInformation("NOTIFICATION: No new listings today");
                 return null;
             }
 
-            (var operationResult, var subscriptionResults) = await CosmosDbService.QueryItemsAsync(userName, ReminderType.LISTING, null);
+            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(userName, ReminderType.LISTING, null);
             if (operationResult == CosmosDbService.DbActionResult.Failed || subscriptionResults == null)
             {
                 Logger.LogError("NOTIFICATION: Failed to get subscribers for new listings");
@@ -96,7 +110,7 @@ namespace DebtServices.Services
                 }
 
                 messages.Add(WeComRegularMessage.CreateTextCardMessage(
-                    WeComConfiguration.AgentId,
+                    weComConfiguration.AgentId,
                     userIds,
                     "新上市",
                     newListing.MakeCardContent(),
@@ -110,13 +124,18 @@ namespace DebtServices.Services
 
         public async Task<WeComRegularMessage> CheckNewReleasesAsync(string userName = null)
         {
-            var newReleases = await EastmoneyService.GetNewReleasesAsync();
+            using var servicesScope = Services.CreateScope();
+            var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
+            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
+            var weComConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<WeComConfiguration>>().Value;
+
+            var newReleases = await eastmoneyService.GetNewReleasesAsync();
             if (newReleases == null || newReleases.Length == 0)
             {
                 return null;
             }
 
-            (var operationResult, var subscriptionResults) = await CosmosDbService.QueryItemsAsync(userName, ReminderType.RELEASE, null);
+            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(userName, ReminderType.RELEASE, null);
             if (operationResult == CosmosDbService.DbActionResult.Failed || subscriptionResults == null)
             {
                 Logger.LogError("NOTIFICATION: No new releases today");
@@ -135,13 +154,33 @@ namespace DebtServices.Services
             Logger.LogInformation($"NOTIFICATION: Collect {newReleases.Length} release to {userIds}");
 
             return WeComRegularMessage.CreateTextCardMessage(
-                    WeComConfiguration.AgentId,
+                    weComConfiguration.AgentId,
                     userIds,
                     "新申购",
                     cardContents,
                     "https://data.eastmoney.com/kzz/default.html",
                     "查看列表"
             );
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            CreateListingTimer();
+            CreateReleaseTimer();
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            NewReleaseTimer.Change(Timeout.Infinite, 0);
+            NewListingTimer.Change(Timeout.Infinite, 0);
+            return Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            NewReleaseTimer?.Dispose();
+            NewListingTimer?.Dispose();
         }
     }
 }

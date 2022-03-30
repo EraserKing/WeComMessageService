@@ -12,23 +12,18 @@ namespace DebtServices.Services
         private readonly ILogger<WeComService> Logger;
         private readonly WeComConfiguration WeComConfiguration;
         private readonly DebtSubscriptionService SubscriptionService;
-        private readonly NotificationService NotificationService;
 
         private Dictionary<ulong, WeComAccessToken> AccessTokenByAgent = new Dictionary<ulong, WeComAccessToken>();
 
         private readonly DebtMessageProcessor DebtMessageProcessor;
 
-        public WeComService(ILogger<WeComService> logger, IOptions<WeComConfiguration> weComConfiguration, DebtSubscriptionService subscriptionService, NotificationService notificationService)
+        public WeComService(ILogger<WeComService> logger, IOptions<WeComConfiguration> weComConfiguration, DebtSubscriptionService subscriptionService)
         {
             Logger = logger;
             WeComConfiguration = weComConfiguration.Value;
             SubscriptionService = subscriptionService;
-            NotificationService = notificationService;
 
             DebtMessageProcessor = new DebtMessageProcessor();
-
-            notificationService.CreateReleaseTimer(SendMessageAsync);
-            notificationService.CreateListingTimer(SendMessageAsync);
         }
 
         private async Task<string> GetAccessTokenAsync(ulong agentId)
@@ -65,7 +60,7 @@ namespace DebtServices.Services
             switch (receiveMessage.AgentID)
             {
                 case 1000003:
-                    return await DebtMessageProcessor.ReplyMessageAsync(receiveMessage, SubscriptionService, this, NotificationService);
+                    return await DebtMessageProcessor.ReplyMessageAsync(receiveMessage, SubscriptionService, this);
 
                 default:
                     return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, "该应用未设置对应处理程序");
