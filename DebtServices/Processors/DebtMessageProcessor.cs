@@ -123,11 +123,14 @@ namespace DebtServices.Processors
                 "取消订阅 代码",
                 "查询 代码",
                 "查询",
+                string.Empty,
                 "订阅申购",
                 "取消订阅申购",
                 "查询订阅申购",
+                string.Empty,
                 "今日申购",
                 "今日上市",
+                string.Empty,
                 "代码 为六位数字，债券代码或证券代码"
             }));
         }

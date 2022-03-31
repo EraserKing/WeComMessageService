@@ -99,7 +99,7 @@ namespace DebtServices.Services
                                 resultString = string.Concat("查询结果：", Environment.NewLine,
                                     string.Join(Environment.NewLine,
                                     queryResults.Select(x =>
-                                    string.Join(Environment.NewLine, $"债券代码：{x.DebtCode} 证券代码: {x.ConvertStockCode} 名称：{x.DebtName}"))));
+                                    string.Join(Environment.NewLine, $"债券代码：{x.DebtCode} 证券代码：{x.ConvertStockCode} 名称：{x.DebtName}"))));
                             }
                             break;
 
