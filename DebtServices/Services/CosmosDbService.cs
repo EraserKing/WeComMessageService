@@ -4,106 +4,90 @@ using DebtServices.Models.Configurations;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Net;
 
 namespace DebtServices.Services
 {
-
-    public class CosmosDbService
+    public enum CosmosDbActionResult
     {
-        public enum DbActionResult
+        Success,
+        Duplicated,
+        NotAvailable,
+        Failed,
+    }
+
+    public class CosmosDbService<T, V> where T : DbContext where V : DbRecordBaseModel
+    {
+        private readonly ILogger<CosmosDbService<T, V>> Logger;
+
+        private T DbContext;
+
+        public CosmosDbService(ILogger<CosmosDbService<T, V>> logger, T dbContext)
         {
-            Success,
-            Duplicated,
-            NotAvailable,
-            Failed,
-        }
+            logger.LogInformation($"COSMOS: Initializing context {typeof(T)} of {typeof(V)}...");
 
-        private readonly ILogger<CosmosDbService> Logger;
-
-        private static DebtReminderContext DebtReminderContext { get; set; }
-
-        private static object InitializeLock = new object();
-
-        public CosmosDbService(ILogger<CosmosDbService> logger, IDbContextFactory<DebtReminderContext> debtReminderContext)
-        {
             Logger = logger;
-
-            lock (InitializeLock)
-
-            {
-                logger.LogInformation("COSMOS: Initializing...");
-                DebtReminderContext ??= debtReminderContext.CreateDbContext();
-            }
+            DbContext = dbContext;
         }
 
-        public async Task<DbActionResult> AddItemAsync(DebtReminderModel drm)
+        public async Task<CosmosDbActionResult> AddItemAsync(V record, Func<V, bool> comparer)
         {
             try
             {
-                var existingItems = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName && x.DebtCode == drm.DebtCode && x.ReminderType == drm.ReminderType).ToArray();
+                var existingItems = DbContext.Set<V>().Where(comparer).ToArray();
                 if (existingItems.Length > 0)
                 {
-                    return DbActionResult.Duplicated;
+                    return CosmosDbActionResult.Duplicated;
                 }
                 else
                 {
-                    await DebtReminderContext.AddAsync(drm);
-                    await DebtReminderContext.SaveChangesAsync();
-                    return DbActionResult.Success;
+                    await DbContext.AddAsync(record);
+                    await DbContext.SaveChangesAsync();
+                    return CosmosDbActionResult.Success;
                 }
             }
             catch (Exception ex)
             {
                 Logger.LogError("Unable to add item", ex);
-                return DbActionResult.Failed;
+                return CosmosDbActionResult.Failed;
             }
         }
 
-        public async Task<DbActionResult> DeleteItemAsync(DebtReminderModel drm)
+        public async Task<CosmosDbActionResult> DeleteItemAsync(V record, Func<V, bool> comparer)
         {
-            var existingItemsQuery = DebtReminderContext.DebtReminders.Where(x => x.UserName == drm.UserName
-                && (x.DebtCode == drm.DebtCode || x.ConvertStockCode == drm.ConvertStockCode)
-                && x.ReminderType == drm.ReminderType);
+            var existingItemsQuery = DbContext.Set<V>().Where(comparer);
             try
             {
                 bool isDeleted = false;
                 foreach (var existingItem in existingItemsQuery)
                 {
-                    DebtReminderContext.Remove(existingItem);
+                    DbContext.Remove(existingItem);
                     isDeleted = true;
                 }
-                await DebtReminderContext.SaveChangesAsync();
-                return isDeleted ? DbActionResult.Success : DbActionResult.NotAvailable;
+                await DbContext.SaveChangesAsync();
+                return isDeleted ? CosmosDbActionResult.Success : CosmosDbActionResult.NotAvailable;
             }
             catch (Exception ex)
             {
                 Logger.LogError("Unable to delete item", ex);
-                return DbActionResult.Failed;
+                return CosmosDbActionResult.Failed;
             }
         }
 
-        public async Task<(DbActionResult, IEnumerable<DebtReminderModel>?)> QueryItemsAsync(string userName, ReminderType reminderType, string? debtOrStockCode = null)
+        public async Task<(CosmosDbActionResult, IEnumerable<V>?)> QueryItemsAsync(Func<V, bool> queryCondition)
         {
-            var items = DebtReminderContext.DebtReminders.Where(x => x.ReminderType == reminderType);
-            if (userName != null)
-            {
-                items = items.Where(x => x.UserName == userName);
-            }
-            if (debtOrStockCode != null)
-            {
-                items = items.Where(x => x.DebtCode == debtOrStockCode || x.ConvertStockCode == debtOrStockCode);
-            }
+            var items = DbContext.Set<V>().Where(queryCondition);
 
             try
             {
                 var queryResults = items.ToArray();
-                return (DbActionResult.Success, queryResults);
+                return (CosmosDbActionResult.Success, queryResults);
             }
             catch (Exception ex)
             {
                 Logger.LogError("Unable to query item(s)", ex);
-                return (DbActionResult.Failed, null);
+                return (CosmosDbActionResult.Failed, null);
             }
         }
     }

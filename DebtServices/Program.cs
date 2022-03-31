@@ -1,4 +1,5 @@
 using DebtServices.Database;
+using DebtServices.Models;
 using DebtServices.Models.Configurations;
 using DebtServices.Processors;
 using DebtServices.Processors.Interfaces;
@@ -27,13 +28,12 @@ builder.Services.AddControllers();
 
 builder.Services.AddApplicationInsightsTelemetry();
 
-builder.Services.AddDbContextFactory<DebtReminderContext>(options => options.UseCosmos(builder.Configuration.GetConnectionString("DebtReminderContext"), "DebtReminder"));
+builder.Services.AddDbContextPool<DebtReminderContext>(options => options.UseCosmos(builder.Configuration.GetConnectionString("DebtReminderContext"), "DebtReminder"));
 
 builder.Services.Configure<WeComServicesConfiguration>(builder.Configuration.GetSection("WeComServices"));
 builder.Services.Configure<DebtServiceConfiguration>(builder.Configuration.GetSection("DebtService"));
-builder.Services.Configure<CosmosDbConfiguration>(builder.Configuration.GetSection("CosmosDb"));
 
-builder.Services.AddScoped<CosmosDbService>();
+builder.Services.AddScoped<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
 builder.Services.AddScoped<WeComService>();
 builder.Services.AddScoped<DebtSubscriptionService>();
 builder.Services.AddScoped<EastmoneyService>();

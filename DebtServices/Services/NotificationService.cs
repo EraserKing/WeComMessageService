@@ -1,4 +1,5 @@
-﻿using DebtServices.Models;
+﻿using DebtServices.Database;
+using DebtServices.Models;
 using DebtServices.Models.Configurations;
 using Microsoft.Extensions.Options;
 
@@ -77,11 +78,11 @@ namespace DebtServices.Services
             Logger.LogInformation($"NOTIFICATION: New listing timer created at UTC {debtServiceConfiguration.NewListingCheckHour}:{debtServiceConfiguration.NewListingCheckMinute}");
         }
 
-        public async Task<IList<WeComRegularMessage>> CheckNewListingsAsync(string userName = null)
+        public async Task<IList<WeComRegularMessage>> CheckNewListingsAsync()
         {
             using var servicesScope = ServiceProvider.CreateScope();
             var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
-            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
+            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
             var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             var newListings = await eastmoneyService.GetNewListingAsync();
@@ -91,8 +92,11 @@ namespace DebtServices.Services
                 return null;
             }
 
-            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(userName, ReminderType.LISTING, null);
-            if (operationResult == CosmosDbService.DbActionResult.Failed || subscriptionResults == null)
+            var newDebtCodes = newListings.Select(x => x.SECURITY_CODE).ToArray();
+            Logger.LogInformation($"NOTIFICATION: New codes on listing today: {string.Join(" ", newDebtCodes)}");
+            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(x => x.ReminderType == ReminderType.LISTING && Array.Exists(newDebtCodes, debtCode => debtCode == x.DebtCode));
+
+            if (operationResult == CosmosDbActionResult.Failed || subscriptionResults == null)
             {
                 Logger.LogError("NOTIFICATION: Failed to get subscribers for new listings");
                 return null;
@@ -100,12 +104,19 @@ namespace DebtServices.Services
 
             List<WeComRegularMessage> messages = new List<WeComRegularMessage>();
 
-            foreach (var newListing in newListings)
+            foreach (var subscriptionsByDebtCode in subscriptionResults.GroupBy(x => x.DebtCode))
             {
-                string userIds = string.Join("|", subscriptionResults.Where(x => x.DebtCode == newListing.SECURITY_CODE).Select(x => x.UserName));
+                var newListing = newListings.FirstOrDefault(x => x.SECURITY_CODE == subscriptionsByDebtCode.Key);
+                if (newListing == null)
+                {
+                    Logger.LogError($"NOTIFICATION: Debt {subscriptionsByDebtCode.Key} is not listed today while it exists in data");
+                    continue;
+                }
+
+                string userIds = string.Join("|", subscriptionsByDebtCode.Select(x => x.UserName));
                 if (string.IsNullOrWhiteSpace(userIds))
                 {
-                    Logger.LogError($"NOTIFICATION: No users subscribed {newListing.SECURITY_CODE} / {newListing.SECURITY_NAME_ABBR} ");
+                    Logger.LogError($"NOTIFICATION: No users subscribed {subscriptionsByDebtCode.FirstOrDefault()?.DebtCode} / {subscriptionsByDebtCode.FirstOrDefault()?.DebtName} ");
                     continue;
                 }
 
@@ -122,11 +133,11 @@ namespace DebtServices.Services
             return messages;
         }
 
-        public async Task<WeComRegularMessage> CheckNewReleasesAsync(string userName = null)
+        public async Task<WeComRegularMessage> CheckNewReleasesAsync()
         {
             using var servicesScope = ServiceProvider.CreateScope();
             var eastmoneyService = servicesScope.ServiceProvider.GetRequiredService<EastmoneyService>();
-            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService>();
+            var cosmosDbService = servicesScope.ServiceProvider.GetRequiredService<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
             var debtServiceConfiguration = servicesScope.ServiceProvider.GetRequiredService<IOptions<DebtServiceConfiguration>>().Value;
 
             var newReleases = await eastmoneyService.GetNewReleasesAsync();
@@ -135,8 +146,8 @@ namespace DebtServices.Services
                 return null;
             }
 
-            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(userName, ReminderType.RELEASE, null);
-            if (operationResult == CosmosDbService.DbActionResult.Failed || subscriptionResults == null)
+            (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(x => x.ReminderType == ReminderType.RELEASE);
+            if (operationResult == CosmosDbActionResult.Failed || subscriptionResults == null)
             {
                 Logger.LogError("NOTIFICATION: No new releases today");
                 return null;

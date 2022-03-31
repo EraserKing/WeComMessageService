@@ -3,14 +3,12 @@ using System.Text.Json.Serialization;
 
 namespace DebtServices.Models
 {
-    public class DebtReminderModel
+    public class DebtReminderModel : DbRecordBaseModel
     {
         public string UserName { get; set; }
         public string DebtCode { get; set; }
         public string DebtName { get; set; }
         public string ConvertStockCode { get; set; }
-
-        public string ID { get; set; }
 
         public ReminderType ReminderType { get; set; }
 

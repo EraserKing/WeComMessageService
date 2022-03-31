@@ -1,14 +1,15 @@
-﻿using DebtServices.Models;
+﻿using DebtServices.Database;
+using DebtServices.Models;
 
 namespace DebtServices.Services
 {
     public class DebtSubscriptionService
     {
         private readonly ILogger<DebtSubscriptionService> Logger;
-        private readonly CosmosDbService CosmosDbService;
+        private readonly CosmosDbService<DebtReminderContext, DebtReminderModel> CosmosDbService;
         private readonly EastmoneyService EastmoneyService;
 
-        public DebtSubscriptionService(ILogger<DebtSubscriptionService> logger, CosmosDbService cosmosDbService, EastmoneyService eastmoneyService)
+        public DebtSubscriptionService(ILogger<DebtSubscriptionService> logger, CosmosDbService<DebtReminderContext, DebtReminderModel> cosmosDbService, EastmoneyService eastmoneyService)
         {
             Logger = logger;
             CosmosDbService = cosmosDbService;
@@ -43,12 +44,12 @@ namespace DebtServices.Services
                 item.ConvertStockCode = debtOrStockCode;
             }
 
-            var operationResult = await CosmosDbService.AddItemAsync(item);
+            var operationResult = await CosmosDbService.AddItemAsync(item, x => x.UserName == item.UserName && x.DebtCode == item.DebtCode && x.ReminderType == item.ReminderType);
             var resultString = operationResult switch
             {
-                CosmosDbService.DbActionResult.Success => $"添加订阅成功：用户 {userName} 代码 {debtOrStockCode}",
-                CosmosDbService.DbActionResult.Duplicated => $"重复添加订阅：用户 {userName} 代码 {debtOrStockCode} 已被添加",
-                CosmosDbService.DbActionResult.Failed => $"添加订阅失败：用户 {userName} 代码 {debtOrStockCode} 无法添加",
+                CosmosDbActionResult.Success => $"添加订阅成功：用户 {userName} 代码 {debtOrStockCode}",
+                CosmosDbActionResult.Duplicated => $"重复添加订阅：用户 {userName} 代码 {debtOrStockCode} 已被添加",
+                CosmosDbActionResult.Failed => $"添加订阅失败：用户 {userName} 代码 {debtOrStockCode} 无法添加",
                 _ => $"未知错误：用户 {userName} 代码 {debtOrStockCode}",
             };
 
@@ -66,13 +67,16 @@ namespace DebtServices.Services
                 ConvertStockCode = debtOrStockCode
             };
 
-            var operationResult = await CosmosDbService.DeleteItemAsync(item);
+            var operationResult = await CosmosDbService.DeleteItemAsync(item, x =>
+                x.UserName == item.UserName
+                && (x.DebtCode == item.DebtCode || x.ConvertStockCode == item.ConvertStockCode)
+                && x.ReminderType == item.ReminderType);
 
             var resultString = operationResult switch
             {
-                CosmosDbService.DbActionResult.Success => $"删除订阅成功：用户 {userName} 代码 {debtOrStockCode}",
-                CosmosDbService.DbActionResult.NotAvailable => $"无法删除订阅：用户 {userName} 代码 {debtOrStockCode} 未曾订阅",
-                CosmosDbService.DbActionResult.Failed => $"删除订阅失败：用户 {userName} 代码 {debtOrStockCode} 无法删除",
+                CosmosDbActionResult.Success => $"删除订阅成功：用户 {userName} 代码 {debtOrStockCode}",
+                CosmosDbActionResult.NotAvailable => $"无法删除订阅：用户 {userName} 代码 {debtOrStockCode} 未曾订阅",
+                CosmosDbActionResult.Failed => $"删除订阅失败：用户 {userName} 代码 {debtOrStockCode} 无法删除",
                 _ => $"未知错误：用户 {userName} 代码 {debtOrStockCode}",
             };
             Logger.LogDebug("SUBSCRIPTION: DELETE " + resultString);
@@ -81,12 +85,15 @@ namespace DebtServices.Services
 
         public async Task<string> QuerySubscriptionAsync(string userName = null, ReminderType reminderType = ReminderType.LISTING, string? debtOrStockCode = null)
         {
-            (var operationResult, var queryResults) = await CosmosDbService.QueryItemsAsync(userName, reminderType, debtOrStockCode);
+            (var operationResult, var queryResults) = await CosmosDbService.QueryItemsAsync(x =>
+                x.ReminderType == reminderType
+                && (userName == null || x.UserName == userName)
+                && (debtOrStockCode == null || x.DebtCode == debtOrStockCode || x.ConvertStockCode == debtOrStockCode));
 
             string resultString;
             switch (operationResult)
             {
-                case CosmosDbService.DbActionResult.Success:
+                case CosmosDbActionResult.Success:
                     switch (reminderType)
                     {
                         case ReminderType.LISTING:
@@ -115,7 +122,7 @@ namespace DebtServices.Services
                     break;
 
 
-                case CosmosDbService.DbActionResult.Failed:
+                case CosmosDbActionResult.Failed:
                     resultString = $"无法执行查询：用户 {userName} 代码 {debtOrStockCode} (如果已指定)";
                     break;
 
