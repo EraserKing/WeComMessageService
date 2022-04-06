@@ -23,7 +23,7 @@ namespace DebtServices.Controllers
 
         private readonly WeComService WeComService;
 
-        private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts;
+        private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
         private static object CryptsInitializeLock = new object();
 
         public HomeController(IOptions<WeComServicesConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService)
@@ -38,7 +38,7 @@ namespace DebtServices.Controllers
                 lock (CryptsInitializeLock)
                 {
                     WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
-                    foreach (var appConfiguration in weComConfiguration.Value.AppConfigurations)
+                    foreach (var appConfiguration in WeComConfiguration.AppConfigurations)
                     {
                         Logger.LogInformation($"HOMESERVICE: Create crypts for {appConfiguration.AppUrlPrefix}...");
                         WXBizMsgCrypts[appConfiguration.AppUrlPrefix] = new WXBizMsgCrypt(appConfiguration.Message.Token, appConfiguration.Message.EncodingAESKey, appConfiguration.CorpId);
