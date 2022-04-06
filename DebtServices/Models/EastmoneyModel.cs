@@ -23,11 +23,11 @@
         public string SECURITY_NAME_ABBR { get; set; }
         public string LISTING_DATE { get; set; }
         public string PUBLIC_START_DATE { get; set; }
-        public float? CONVERT_STOCK_PRICE { get; set; }
-        public float? TRANSFER_PRICE { get; set; }
-        public float? TRANSFER_VALUE { get; set; }
+        public object CONVERT_STOCK_PRICE { get; set; }
+        public object TRANSFER_PRICE { get; set; }
+        public object TRANSFER_VALUE { get; set; }
         public object CURRENT_BOND_PRICE { get; set; }
-        public float? TRANSFER_PREMIUM_RATIO { get; set; }
+        public object TRANSFER_PREMIUM_RATIO { get; set; }
 
         public string MakeCardContent()
         {
