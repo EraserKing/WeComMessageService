@@ -46,7 +46,10 @@ namespace DebtServices.Services
                 using var timerServicesScope = ServiceProvider.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start release routine");
                 var newReleases = await CheckNewReleasesAsync();
-                await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
+                if (newReleases != null)
+                {
+                    await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
+                }
                 Logger.LogInformation("NOTIFICATION: Finish release routine");
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
             Logger.LogInformation($"NOTIFICATION: New release timer created at UTC {debtServiceConfiguration.NewReleaseCheckHour}:{debtServiceConfiguration.NewReleaseCheckMinute}");
@@ -69,9 +72,12 @@ namespace DebtServices.Services
                 using var timerServicesScope = ServiceProvider.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start listing routine");
                 var newListings = await CheckNewListingsAsync();
-                foreach (var newListing in newListings)
+                if (newListings != null)
                 {
-                    await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newListing);
+                    foreach (var newListing in newListings)
+                    {
+                        await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newListing);
+                    }
                 }
                 Logger.LogInformation("NOTIFICATION: Finish listing routine");
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));

@@ -67,6 +67,11 @@ namespace DebtServices.Services
 
         public async Task SendMessageAsync(WeComRegularMessage regularMessage)
         {
+            if (regularMessage == null)
+            {
+                Logger.LogInformation($"WECOMSERVICE: SEND_MESSAGE skipped - source is null");
+                return;
+            }
             HttpClient client = new HttpClient();
             var response = await client.PostAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", JsonContent.Create(regularMessage, regularMessage.GetType()));
             response.EnsureSuccessStatusCode();
@@ -82,8 +87,16 @@ namespace DebtServices.Services
 
             var serviceScope = ServiceProvider.CreateScope();
 
-            var processor = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
-            return await (processor as IProcessor).ReplyMessageAsync(receiveMessage, this);
+            var service = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
+            if (service is IProcessor processor)
+            {
+                return await processor.ReplyMessageAsync(receiveMessage, this);
+            }
+            else
+            {
+                Logger.LogError($"WECOMSERVICE: No processor found for {receiveMessage.AgentID}");
+                throw new ArgumentNullException(nameof(receiveMessage.AgentID));
+            }
         }
     }
 }

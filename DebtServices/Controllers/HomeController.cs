@@ -23,7 +23,7 @@ namespace DebtServices.Controllers
 
         private readonly WeComService WeComService;
 
-        private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
+        private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts = null;
         private static object CryptsInitializeLock = new object();
 
         public HomeController(IOptions<WeComServicesConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService)
@@ -130,5 +130,35 @@ namespace DebtServices.Controllers
             // Return response
             return Ok(encryptedBodyString);
         }
+
+#if DEBUG
+        [HttpPost("/plain")]
+        public async Task<ActionResult<string>> ReceivePlainMessageAsync()
+        {
+            // Read body
+            string receivedBodyString = await new StreamReader(Request.Body, Encoding.UTF8).ReadToEndAsync();
+            
+            // Deserialize body
+            WeComReceiveMessage receivedMessage = XmlUtilities.Deserialize<WeComReceiveMessage>(receivedBodyString);
+            if (receivedMessage == null)
+            {
+                Logger.LogError("HOME: RECEIVE_MESSAGE ERR: INVALID MESSAGE");
+                return BadRequest("RECEIVE_MESSAGE ERR: INVALID MESSAGE");
+            }
+
+            // Build response
+            WeComInstanceReply replyMessage = await WeComService.ReplyMessageAsync(receivedMessage);
+
+            if (replyMessage == null)
+            {
+                return Ok("");
+            }
+
+            // Serialize response
+            string replyBodyString = XmlUtilities.Serialize(replyMessage);
+            Logger.LogInformation($"HOME: RECEIVE_MESSAGE, REPLY:\n{replyBodyString}");
+            return Ok(replyBodyString);            
+        }
+#endif
     }
 }
