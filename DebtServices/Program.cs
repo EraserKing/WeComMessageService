@@ -33,12 +33,14 @@ builder.Services.AddDbContextPool<DebtReminderContext>(options => options.UseCos
 builder.Services.Configure<WeComServicesConfiguration>(builder.Configuration.GetSection("WeComServices"));
 builder.Services.Configure<DebtServiceConfiguration>(builder.Configuration.GetSection("DebtService"));
 builder.Services.Configure<QinglongServiceConfiguration>(builder.Configuration.GetSection("QinglongService"));
+builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetSection("MikanService"));
 
 builder.Services.AddScoped<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
 builder.Services.AddScoped<WeComService>();
 builder.Services.AddScoped<DebtSubscriptionService>();
 builder.Services.AddScoped<EastmoneyService>();
 builder.Services.AddScoped<QinglongService>();
+builder.Services.AddScoped<MikanService>();
 
 builder.Services.AddScoped<IProcessor, DebtMessageProcessor>();
 builder.Services.AddScoped<DebtMessageProcessor>();
@@ -46,7 +48,12 @@ builder.Services.AddScoped<DebtMessageProcessor>();
 builder.Services.AddScoped<IProcessor, QinglongProcessor>();
 builder.Services.AddScoped<QinglongProcessor>();
 
+builder.Services.AddScoped<IProcessor, MikanProcessor>();
+builder.Services.AddScoped<MikanProcessor>();
+
 builder.Services.AddHostedService<NotificationService>();
+builder.Services.AddSingleton<MikanBackgroundService>();
+builder.Services.AddHostedService<MikanBackgroundService>(provider => provider.GetService<MikanBackgroundService>());
 
 var app = builder.Build();
 
