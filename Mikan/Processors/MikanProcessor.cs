@@ -9,7 +9,6 @@ namespace Mikan.Processors
     public class MikanProcessor : IProcessor
     {
         private Regex ItemRegex = new Regex(@"^\d+$", RegexOptions.Compiled);
-        private Regex AddItemByUrlRegex = new Regex(@"^ADD (.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly MikanService MikanService;
 
@@ -64,16 +63,6 @@ namespace Mikan.Processors
                 {
                     await MikanService.ClearCache();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Cleared all items"));
-                }).Start();
-                return null;
-            }
-            else if (AddItemByUrlRegex.IsMatch(receiveMessage.Content))
-            {
-                new Thread(async () =>
-                {
-                    var url = AddItemByUrlRegex.Match(receiveMessage.Content).Groups[1].Value;
-                    await MikanService.AddItemByUrl(url);
-                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, $"Add item by url {url}"));
                 }).Start();
                 return null;
             }

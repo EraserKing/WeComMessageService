@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Mikan.Exceptions;
 using Mikan.Models.Configurations;
+using Qbittorrent.Services;
 
 namespace Mikan.Services
 {
@@ -10,12 +11,14 @@ namespace Mikan.Services
         private readonly ILogger<MikanService> Logger;
         private readonly IOptions<MikanServiceConfiguration> Options;
         private readonly MikanBackgroundService MikanBackgroundService;
+        private readonly QbittorrentService QbittorrentService;
 
-        public MikanService(ILogger<MikanService> logger, IOptions<MikanServiceConfiguration> options, MikanBackgroundService mikanBackgroundService)
+        public MikanService(ILogger<MikanService> logger, IOptions<MikanServiceConfiguration> options, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
         {
             Logger = logger;
             Options = options;
             MikanBackgroundService = mikanBackgroundService;
+            QbittorrentService = qbittorrentService;
         }
 
         public string CreateList()
@@ -44,38 +47,6 @@ namespace Mikan.Services
             await MikanBackgroundService.Refresh();
         }
 
-        public async Task AddItemByUrl(string url, string title = null)
-        {
-            try
-            {
-                HttpClientHandler httpClientHandler = new HttpClientHandler();
-                httpClientHandler.CookieContainer = new System.Net.CookieContainer();
-
-                var client = new HttpClient(httpClientHandler);
-
-                var loginPostContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("username", Options.Value.QbUsername),
-                new KeyValuePair<string, string>("password", Options.Value.QbPassword)
-            });
-                var loginResponse = await client.PostAsync($"{Options.Value.QbUrl}/api/v2/auth/login", loginPostContent);
-                loginResponse.EnsureSuccessStatusCode();
-
-                var addTorrentContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("urls", url)
-            });
-                var addTorrentResponse = await client.PostAsync($"{Options.Value.QbUrl}/api/v2/torrents/add", addTorrentContent);
-                addTorrentResponse.EnsureSuccessStatusCode();
-                Logger.LogInformation($"MIKAN: Added torrent of with url {url}{(title == null ? "" : $" of title {title}")}");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"MIKAN: Unable to add torrent of with url {url}{(title == null ? "" : $" of title {title}")} due to {ex.Message}");
-                throw;
-            }
-        }
-
         public async Task<string> AddItem(string key)
         {
             if (uint.TryParse(key, out uint receivedKey))
@@ -83,7 +54,7 @@ namespace Mikan.Services
                 var foundItem = MikanBackgroundService.CacheItems.FirstOrDefault(ci => ci.Key == receivedKey);
                 if (foundItem != null)
                 {
-                    await AddItemByUrl(foundItem.Url, foundItem.Title);
+                    await QbittorrentService.AddItem(foundItem.Url);
                     Logger.LogInformation($"MIKAN: Added torrent {foundItem.Title}");
                     return $"Added torrent of {foundItem.Title}";
 
