@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.20.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.20.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DebtReminder\DebtReminder.csproj" />
+    <ProjectReference Include="..\Eastmoney\Eastmoney.csproj" />
+    <ProjectReference Include="..\Mikan\Mikan.csproj" />
+    <ProjectReference Include="..\Qinglong\Qinglong.csproj" />
+    <ProjectReference Include="..\Utilities\Utilities.csproj" />
+    <ProjectReference Include="..\WeComCommon\WeComCommon.csproj" />
+  </ItemGroup>
+
+</Project>
