@@ -26,9 +26,9 @@ namespace Mikan.Services
             return string.Join($"{Environment.NewLine}{Environment.NewLine}", MikanBackgroundService.CacheItems.Select(ci => ci.MakeCardContent()));
         }
 
-        public async Task Refresh()
+        public async Task<string> Refresh()
         {
-            await MikanBackgroundService.Refresh();
+            return await MikanBackgroundService.Refresh();
         }
 
         public async Task ClearOutDatedCache()
@@ -41,10 +41,10 @@ namespace Mikan.Services
             await MikanBackgroundService.ClearCache();
         }
 
-        public async Task ForceRefresh()
+        public async Task<string> ForceRefresh()
         {
             await MikanBackgroundService.ClearCache();
-            await MikanBackgroundService.Refresh();
+            return await MikanBackgroundService.Refresh();
         }
 
         public async Task<string> AddItem(string key)

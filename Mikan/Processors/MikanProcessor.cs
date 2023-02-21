@@ -34,8 +34,8 @@ namespace Mikan.Processors
             {
                 new Thread(async () =>
                 {
-                    await MikanService.Refresh();
-                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Refreshed"));
+                    var content = await MikanService.Refresh();
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, content ?? "Refreshed with no entry"));
                 }).Start();
                 return null;
             }
@@ -43,8 +43,8 @@ namespace Mikan.Processors
             {
                 new Thread(async () =>
                 {
-                    await MikanService.ForceRefresh();
-                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Force Refreshed"));
+                    var content = await MikanService.ForceRefresh();
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, content ?? "Force refreshed with no entry"));
                 }).Start();
                 return null;
             }
