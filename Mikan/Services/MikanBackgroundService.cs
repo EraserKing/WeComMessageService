@@ -45,7 +45,12 @@ namespace Mikan.Services
             RefreshTimer = new Timer(async (param) =>
             {
                 Logger.LogInformation($"MIKAN: Start timer of refreshing at {DateTime.Now}");
-                await Refresh();
+                var content = await Refresh();
+                if (content != null)
+                {
+                    var message = WeComRegularMessage.CreateTextMessage(Options.Value.SendByAgentId, "@all", content);
+                    await ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(message);
+                }
                 Logger.LogInformation("MIKAN: Finish timer of refreshing routine");
 
             }, null, 20, 3600 * 1000);
@@ -69,7 +74,7 @@ namespace Mikan.Services
             }, null, 0, 3600 * 1000);
         }
 
-        public async Task Refresh()
+        public async Task<string> Refresh()
         {
             List<MikanCacheItem> newItems = new List<MikanCacheItem>();
 
@@ -129,13 +134,11 @@ namespace Mikan.Services
             {
                 Logger.LogInformation($"MIKAN: Found {newItems.Count} items to send");
                 string content = string.Join($"{Environment.NewLine}{Environment.NewLine}", newItems.Select(x => x.MakeCardContent()));
-                var newMessage = WeComRegularMessage.CreateTextMessage(
-                        Options.Value.SendByAgentId,
-                        "@all",
-                        content);
-                using var servicesScope = ServiceProvider.CreateScope();
-                await servicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newMessage);
-                Logger.LogInformation($"MIKAN: Send {newItems.Count} items to the receivers");
+                return content;
+            }
+            else
+            {
+                return null;
             }
         }
 
