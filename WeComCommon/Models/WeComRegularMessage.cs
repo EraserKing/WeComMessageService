@@ -19,6 +19,9 @@ namespace WeComCommon.Models
         [JsonPropertyName("textcard")]
         public WeComRegularMessageTextCard TextCard { get; set; }
 
+        [JsonPropertyName("markdown")]
+        public WeComRegularMessageMarkdown Markdown { get; set; }
+
         [JsonPropertyName("duplicate_check_interval")]
         public int DuplicateCheckInterval { get; set; }
 
@@ -57,6 +60,20 @@ namespace WeComCommon.Models
                 }
             };
         }
+
+        public static WeComRegularMessage CreateMarkdownMessage(ulong agentId, string to, string content)
+        {
+            return new WeComRegularMessage()
+            {
+                AgentId = agentId,
+                MsgType = "markdown",
+                ToUser = to,
+                Markdown = new WeComRegularMessageMarkdown()
+                {
+                    Content = content
+                }
+            };
+        }
     }
 
     public class WeComRegularMessageText
@@ -78,5 +95,11 @@ namespace WeComCommon.Models
 
         [JsonPropertyName("btntxt")]
         public string BtnTxt { get; set; }
+    }
+
+    public class WeComRegularMessageMarkdown
+    {
+        [JsonPropertyName("content")]
+        public string Content { get; set; }
     }
 }
