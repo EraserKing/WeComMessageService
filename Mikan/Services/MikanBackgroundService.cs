@@ -101,7 +101,7 @@ namespace Mikan.Services
                                         ReceivedDateTime = DateTime.Now,
                                         Title = item.Title,
                                         Url = links.Uri.AbsoluteUri,
-                                        Key = CacheItems.Count == 0 ? 0 : CacheItems.Select(ci => ci.Key).Max() + 1
+                                        Key = CacheItems.Count == 0 ? 1 : CacheItems.Select(ci => ci.Key).Max() + 1
                                     };
                                     CacheItems.Add(newItem);
                                     newItems.Add(newItem);
