@@ -11,9 +11,9 @@ namespace Qbittorrent.Models
         public uint ID { get; set; }
 
         public int added_on { get; set; }
-        public int amount_left { get; set; }
+        public long amount_left { get; set; }
         public bool auto_tmm { get; set; }
-        public int availability { get; set; }
+        public decimal availability { get; set; }
         public string category { get; set; }
         public long completed { get; set; }
         public int completion_on { get; set; }
@@ -31,7 +31,7 @@ namespace Qbittorrent.Models
         public string infohash_v2 { get; set; }
         public int last_activity { get; set; }
         public string magnet_uri { get; set; }
-        public int max_ratio { get; set; }
+        public decimal max_ratio { get; set; }
         public int max_seeding_time { get; set; }
         public string name { get; set; }
         public int num_complete { get; set; }
@@ -39,9 +39,9 @@ namespace Qbittorrent.Models
         public int num_leechs { get; set; }
         public int num_seeds { get; set; }
         public int priority { get; set; }
-        public int progress { get; set; }
-        public float ratio { get; set; }
-        public int ratio_limit { get; set; }
+        public decimal progress { get; set; }
+        public decimal ratio { get; set; }
+        public decimal ratio_limit { get; set; }
         public string save_path { get; set; }
         public int seeding_time { get; set; }
         public int seeding_time_limit { get; set; }
@@ -59,6 +59,41 @@ namespace Qbittorrent.Models
         public long uploaded { get; set; }
         public long uploaded_session { get; set; }
         public int upspeed { get; set; }
-    }
 
+        public string GetDynamicSize(long size)
+        {
+            if (size < 1024)
+            {
+                return $"{size}B";
+            }
+            else if (size < 1024 * 1024)
+            {
+                return $"{size / 1024.0:0.##}KB";
+            }
+            else if (size < 1024 * 1024 * 1024)
+            {
+                return $"{size / 1024.0 / 1024.0:0.##}MB";
+            }
+            else
+            {
+                return $"{size / 1024.0 / 1024.0 / 1024.0:0.##}GB";
+            }
+        }
+
+        public string GetState() => state switch
+        {
+            "error" => "❌",
+            "uploading" => "⬆",
+            "pausedUP" => "⬆⏸️",
+            "stalledUP" => "⬆📮",
+            "queuedUP" => "⬆🛳",
+            "checkingUP" => "⬆🔍",
+            "downloading" => "⬇️",
+            "pausedDL" => "⬇️⏸️",
+            "stalledDL" => "⬇️📮",
+            "checkingDL" => "⬇️🔍",
+            "queuedDL" => "⬇️🛳",
+            _ => "❓"
+        };
+    }
 }

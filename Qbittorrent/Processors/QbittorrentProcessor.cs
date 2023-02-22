@@ -34,7 +34,7 @@ namespace Qbittorrent.Processors
             {
                 new Thread(async () =>
                 {
-                    var items = (await QbittorrentService.ListItems());
+                    var items = await QbittorrentService.ListItems();
                     if (items == null)
                     {
                         await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "No items fetched"));
@@ -45,7 +45,7 @@ namespace Qbittorrent.Processors
                     }
                     else
                     {
-                        string message = string.Join($"{Environment.NewLine}{Environment.NewLine}", items.Select(x => $"[{x.ID}] {x.name} <{x.progress * 100.0}%>"));
+                        string message = string.Join($"{Environment.NewLine}{Environment.NewLine}", items.Select(x => $"[{x.ID}] {x.GetState()} {x.name} <{x.GetDynamicSize(x.size)}> <{x.progress * 100:0.##}%>"));
                         await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
                     }
                 }).Start();
