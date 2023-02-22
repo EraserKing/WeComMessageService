@@ -180,7 +180,7 @@ namespace Qbittorrent.Services
                 var torrentsInfo = await getTorrentsResponse.Content.ReadFromJsonAsync<TorrentInfo[]>();
                 if (torrentsInfo != null)
                 {
-                    uint i = 0;
+                    uint i = 1;
                     foreach (var torrentInfo in torrentsInfo)
                     {
                         torrentInfo.ID = i++;
