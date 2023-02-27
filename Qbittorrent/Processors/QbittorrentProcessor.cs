@@ -147,7 +147,7 @@ namespace Qbittorrent.Processors
                 "L: 显示所有项目",
                 "A {URL}: 直接添加下载",
                 "D {ID}: 删除项目",
-                "D {ID}: 删除项目与文件",
+                "DF {ID}: 删除项目与文件",
                 "P {ID}: 暂停项目",
                 "R {ID}: 恢复项目",
                 "T: 切换过滤器"
