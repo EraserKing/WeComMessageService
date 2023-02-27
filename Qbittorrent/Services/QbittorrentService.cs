@@ -18,8 +18,6 @@ namespace Qbittorrent.Services
 
         private bool FilterInWork = true;
 
-        private TorrentInfo[]? TorrentsInfo = null;
-
         private HttpClient Client { get; set; } = new HttpClient();
 
         public QbittorrentService(ILogger<QbittorrentService> logger, IOptions<QbittorrentServiceConfiguration> options)
@@ -71,25 +69,19 @@ namespace Qbittorrent.Services
         {
             try
             {
-                if (TorrentsInfo == null)
+                var torrentsInfo = await ListItems();
+                var itemToDelete = torrentsInfo?.FirstOrDefault(ti => ti.ID == uint.Parse(item));
+                if (itemToDelete == null)
                 {
-                    return "List is empty";
+                    return "Item is not found";
                 }
                 else
                 {
-                    var itemToDelete = TorrentsInfo.FirstOrDefault(ti => ti.ID == uint.Parse(item));
-                    if (itemToDelete == null)
-                    {
-                        return "Item is not found";
-                    }
-                    else
-                    {
-                        await Login();
-                        var deleteTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/delete?hashes={itemToDelete.hash}&deleteFiles={withFile}");
-                        deleteTorrentResponse.EnsureSuccessStatusCode();
+                    await Login();
+                    var deleteTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/delete?hashes={itemToDelete.hash}&deleteFiles={withFile}");
+                    deleteTorrentResponse.EnsureSuccessStatusCode();
 
-                        return "Done";
-                    }
+                    return "Done";
                 }
             }
             catch (Exception ex)
@@ -103,25 +95,19 @@ namespace Qbittorrent.Services
         {
             try
             {
-                if (TorrentsInfo == null)
+                var torrentsInfo = await ListItems();
+                var itemToPause = torrentsInfo?.FirstOrDefault(ti => ti.ID == uint.Parse(item));
+                if (itemToPause == null)
                 {
-                    return "List is empty";
+                    return "Item is not found";
                 }
                 else
                 {
-                    var itemToPause = TorrentsInfo.FirstOrDefault(ti => ti.ID == uint.Parse(item));
-                    if (itemToPause == null)
-                    {
-                        return "Item is not found";
-                    }
-                    else
-                    {
-                        await Login();
-                        var pauseTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/pause?hashes={itemToPause.hash}");
-                        pauseTorrentResponse.EnsureSuccessStatusCode();
+                    await Login();
+                    var pauseTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/pause?hashes={itemToPause.hash}");
+                    pauseTorrentResponse.EnsureSuccessStatusCode();
 
-                        return "Done";
-                    }
+                    return "Done";
                 }
             }
             catch (Exception ex)
@@ -135,25 +121,19 @@ namespace Qbittorrent.Services
         {
             try
             {
-                if (TorrentsInfo == null)
+                var torrentsInfo = await ListItems();
+                var itemToResume = torrentsInfo?.FirstOrDefault(ti => ti.ID == uint.Parse(item));
+                if (itemToResume == null)
                 {
-                    return "List is empty";
+                    return "Item is not found";
                 }
                 else
                 {
-                    var itemToResume = TorrentsInfo.FirstOrDefault(ti => ti.ID == uint.Parse(item));
-                    if (itemToResume == null)
-                    {
-                        return "Item is not found";
-                    }
-                    else
-                    {
-                        await Login();
-                        var resumeTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/resume?hashes={itemToResume.hash}");
-                        resumeTorrentResponse.EnsureSuccessStatusCode();
+                    await Login();
+                    var resumeTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/resume?hashes={itemToResume.hash}");
+                    resumeTorrentResponse.EnsureSuccessStatusCode();
 
-                        return "Done";
-                    }
+                    return "Done";
                 }
             }
             catch (Exception ex)
@@ -186,11 +166,10 @@ namespace Qbittorrent.Services
                         torrentInfo.ID = i++;
                     }
                 }
-                TorrentsInfo = torrentsInfo;
 
                 if (FilterInWork && Options.Value.HiddenWords != null)
                 {
-                    return torrentsInfo.ToArray().Select(ti =>
+                    return torrentsInfo?.ToArray().Select(ti =>
                     {
                         foreach (string hiddenWord in Options.Value.HiddenWords)
                         {
