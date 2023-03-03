@@ -20,14 +20,22 @@ using WeComCommon.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var configFilePath = Environment.GetEnvironmentVariable("DS_CONFIG_PATH");
-if (!string.IsNullOrEmpty(configFilePath))
+var configSource = Environment.GetEnvironmentVariable("WCM_CONFIG_SOURCE") ?? "AZURE";
+switch (configSource)
 {
-    builder.Host.ConfigureAppConfiguration((hostingContext, appConfiguration) =>
-    {
-        appConfiguration.AddJsonFile(configFilePath);
-    });
-};
+    case "AZURE":
+        Console.WriteLine("Reading configuration from Azure");
+        builder.Configuration.AddAzureAppConfiguration(Environment.GetEnvironmentVariable("WCM_CONFIG_SOURCE_AZURE"));
+        break;
+
+    case "FILE":
+        Console.WriteLine("Reading configuration from file");
+        builder.Host.ConfigureAppConfiguration((hostingContext, appConfiguration) =>
+        {
+            appConfiguration.AddJsonFile(Environment.GetEnvironmentVariable("WCM_CONFIG_SOURCE_FILE"));
+        });
+        break;
+}
 
 if (builder.Environment.IsDevelopment())
 {
@@ -48,8 +56,9 @@ builder.Services.Configure<QinglongServiceConfiguration>(builder.Configuration.G
 builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetSection("MikanService"));
 builder.Services.Configure<QbittorrentServiceConfiguration>(builder.Configuration.GetSection("QbittorrentService"));
 
+builder.Services.AddSingleton<WeComService>();
+
 builder.Services.AddScoped<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
-builder.Services.AddScoped<WeComService>();
 builder.Services.AddScoped<DebtSubscriptionService>();
 builder.Services.AddScoped<EastmoneyService>();
 builder.Services.AddScoped<QinglongService>();

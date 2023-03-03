@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Mikan.Exceptions;
-using Mikan.Models.Configurations;
 using Qbittorrent.Services;
 
 namespace Mikan.Services
@@ -9,14 +8,12 @@ namespace Mikan.Services
     public class MikanService
     {
         private readonly ILogger<MikanService> Logger;
-        private readonly IOptions<MikanServiceConfiguration> Options;
         private readonly MikanBackgroundService MikanBackgroundService;
         private readonly QbittorrentService QbittorrentService;
 
-        public MikanService(ILogger<MikanService> logger, IOptions<MikanServiceConfiguration> options, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
+        public MikanService(ILogger<MikanService> logger, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
         {
             Logger = logger;
-            Options = options;
             MikanBackgroundService = mikanBackgroundService;
             QbittorrentService = qbittorrentService;
         }
