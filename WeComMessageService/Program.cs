@@ -14,9 +14,11 @@ using Qbittorrent.Services;
 using Qinglong.Models.Configurations;
 using Qinglong.Processors;
 using Qinglong.Services;
+using Utilities.Utilities;
 using WeComCommon.Models.Configurations;
 using WeComCommon.Processors.Interfaces;
 using WeComCommon.Services;
+using WeComMessageService.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +27,13 @@ switch (configSource)
 {
     case "AZURE":
         Console.WriteLine("Reading configuration from Azure");
-        builder.Configuration.AddAzureAppConfiguration(Environment.GetEnvironmentVariable("WCM_CONFIG_SOURCE_AZURE"));
+        builder.Configuration.AddAzureAppConfiguration(options =>
+        {
+            options.Connect(Environment.GetEnvironmentVariable("WCM_CONFIG_SOURCE_AZURE"))
+            .ConfigureRefresh(refreshOptions =>
+                refreshOptions.Register("*", refreshAll: true)
+                              .SetCacheExpiration(TimeSpan.FromDays(1)));
+        });
         break;
 
     case "FILE":
@@ -57,6 +65,9 @@ builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetS
 builder.Services.Configure<QbittorrentServiceConfiguration>(builder.Configuration.GetSection("QbittorrentService"));
 
 builder.Services.AddSingleton<WeComService>();
+builder.Services.AddSingleton<ValueHolder<QbittorrentServiceConfigurationSite>>();
+
+builder.Services.AddScoped<OnDemandAzureAppConfigurationRefresher>();
 
 builder.Services.AddScoped<CosmosDbService<DebtReminderContext, DebtReminderModel>>();
 builder.Services.AddScoped<DebtSubscriptionService>();
