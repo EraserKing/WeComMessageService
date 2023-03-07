@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
+using Utilities.Utilities;
 
 namespace Qbittorrent.Services
 {
@@ -18,16 +19,31 @@ namespace Qbittorrent.Services
 
         private bool FilterInWork = true;
 
+        private readonly ValueHolder<QbittorrentServiceConfigurationSite> ActiveSiteHolder;
+
         private HttpClient Client { get; set; } = new HttpClient();
 
-        public QbittorrentService(ILogger<QbittorrentService> logger, IOptions<QbittorrentServiceConfiguration> options)
+        public QbittorrentService(ILogger<QbittorrentService> logger, IOptions<QbittorrentServiceConfiguration> options, ValueHolder<QbittorrentServiceConfigurationSite> activeSiteHolder)
         {
             Logger = logger;
             Options = options;
+
+            ActiveSiteHolder = activeSiteHolder;
+
+            if (ActiveSiteHolder.Get() == null)
+            {
+                ActiveSiteHolder.Set(options.Value.Sites.FirstOrDefault(s => s.Default) ?? options.Value.Sites.FirstOrDefault());
+            }
+        }
+
+        public void CheckActiveSite()
+        {
+            ArgumentNullException.ThrowIfNull(ActiveSiteHolder.Get(), "Active site");
         }
 
         public async Task Login()
         {
+            CheckActiveSite();
             HttpClientHandler httpClientHandler = new HttpClientHandler();
             httpClientHandler.CookieContainer = new System.Net.CookieContainer();
 
@@ -35,14 +51,30 @@ namespace Qbittorrent.Services
 
             var loginPostContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>()
             {
-                new KeyValuePair<string, string>("username", Options.Value.QbUsername),
-                new KeyValuePair<string, string>("password", Options.Value.QbPassword)
+                new KeyValuePair<string, string>("username", ActiveSiteHolder.Get()?.QbUsername),
+                new KeyValuePair<string, string>("password", ActiveSiteHolder.Get()?.QbPassword)
             });
-            var loginResponse = await client.PostAsync($"{Options.Value.QbUrl}/api/v2/auth/login", loginPostContent);
+            var loginResponse = await client.PostAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/auth/login", loginPostContent);
             loginResponse.EnsureSuccessStatusCode();
             Client = client;
         }
 
+        public string SwitchSite(string siteName)
+        {
+            var site = Options.Value.Sites.FirstOrDefault(s => siteName.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
+            if (site == null)
+            {
+                return $"This site {siteName} is not found";
+            }
+
+            ActiveSiteHolder.Set(site);
+            return $"Active site is now {siteName}";
+        }
+
+        public string ListSites()
+        {
+            return string.Join(Environment.NewLine, Options.Value.Sites.Select(c => $"{(c.Name == ActiveSiteHolder.Get()?.Name ? "[✅]" : "")}{(c.Default ? "[⭐]" : "")}{c.Name}"));
+        }
 
         public async Task<string> AddItem(string url)
         {
@@ -53,7 +85,7 @@ namespace Qbittorrent.Services
             {
                 new KeyValuePair<string, string>("urls", url)
             });
-                var addTorrentResponse = await Client.PostAsync($"{Options.Value.QbUrl}/api/v2/torrents/add", addTorrentContent);
+                var addTorrentResponse = await Client.PostAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add", addTorrentContent);
                 addTorrentResponse.EnsureSuccessStatusCode();
                 Logger.LogInformation($"QB: Added torrent of with url {url}");
                 return "Done";
@@ -78,7 +110,7 @@ namespace Qbittorrent.Services
                 else
                 {
                     await Login();
-                    var deleteTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/delete?hashes={itemToDelete.hash}&deleteFiles={withFile}");
+                    var deleteTorrentResponse = await Client.GetAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/delete?hashes={itemToDelete.hash}&deleteFiles={withFile}");
                     deleteTorrentResponse.EnsureSuccessStatusCode();
 
                     return "Done";
@@ -104,7 +136,7 @@ namespace Qbittorrent.Services
                 else
                 {
                     await Login();
-                    var pauseTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/pause?hashes={itemToPause.hash}");
+                    var pauseTorrentResponse = await Client.GetAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/pause?hashes={itemToPause.hash}");
                     pauseTorrentResponse.EnsureSuccessStatusCode();
 
                     return "Done";
@@ -130,7 +162,7 @@ namespace Qbittorrent.Services
                 else
                 {
                     await Login();
-                    var resumeTorrentResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/resume?hashes={itemToResume.hash}");
+                    var resumeTorrentResponse = await Client.GetAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/resume?hashes={itemToResume.hash}");
                     resumeTorrentResponse.EnsureSuccessStatusCode();
 
                     return "Done";
@@ -154,7 +186,7 @@ namespace Qbittorrent.Services
             try
             {
                 await Login();
-                var getTorrentsResponse = await Client.GetAsync($"{Options.Value.QbUrl}/api/v2/torrents/info");
+                var getTorrentsResponse = await Client.GetAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/info");
                 getTorrentsResponse.EnsureSuccessStatusCode();
 
                 var torrentsInfo = await getTorrentsResponse.Content.ReadFromJsonAsync<TorrentInfo[]>();

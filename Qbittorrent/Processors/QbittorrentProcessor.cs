@@ -18,6 +18,7 @@ namespace Qbittorrent.Processors
         private Regex DeleteItemWithFileRegex = new Regex(@"^DF (\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private Regex PauseItemRegex = new Regex(@"^P (\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private Regex ResumeItemRegex = new Regex(@"^R (\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private Regex SwitchSiteRegex = new Regex(@"^S ([-\w]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly QbittorrentService QbittorrentService;
 
@@ -140,6 +141,27 @@ namespace Qbittorrent.Processors
             {
                 return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, QbittorrentService.ToggleFilterSwitch());
             }
+            else if (receiveMessage.Content.Equals("S", StringComparison.OrdinalIgnoreCase))
+            {
+                return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, QbittorrentService.ListSites());
+            }
+            else if (SwitchSiteRegex.IsMatch(receiveMessage.Content))
+            {
+                new Thread(async () =>
+                {
+                    try
+                    {
+                        var siteName = SwitchSiteRegex.Match(receiveMessage.Content).Groups[1].Value;
+                        string message = QbittorrentService.SwitchSite(siteName);
+                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                    }
+                    catch (Exception ex)
+                    {
+                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
+                    }
+                }).Start();
+                return null;
+            }
 
             return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, string.Join(Environment.NewLine, new string[]
             {
@@ -150,6 +172,8 @@ namespace Qbittorrent.Processors
                 "DF {ID}: 删除项目与文件",
                 "P {ID}: 暂停项目",
                 "R {ID}: 恢复项目",
+                "S: 列出站点",
+                "S {NAME}: 切换到站点",
                 "T: 切换过滤器"
             }));
         }
