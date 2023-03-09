@@ -3,7 +3,14 @@
     public class QinglongCronModel
     {
         public int code { get; set; }
+        public QinglongCronDataSet data { get; set; }
+    }
+
+    public class QinglongCronDataSet
+    {
+        public int total { get; set; }
         public QinglongCronData[] data { get; set; }
+
     }
 
     public class QinglongCronData
@@ -26,5 +33,4 @@
         public DateTime createdAt { get; set; }
         public DateTime updatedAt { get; set; }
     }
-
 }
