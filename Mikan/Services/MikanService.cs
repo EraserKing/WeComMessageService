@@ -20,7 +20,7 @@ namespace Mikan.Services
 
         public string CreateList()
         {
-            return string.Join($"{Environment.NewLine}{Environment.NewLine}", MikanBackgroundService.CacheItems.Select(ci => ci.MakeCardContent()));
+            return string.Join($"{Environment.NewLine}{Environment.NewLine}", MikanBackgroundService.AvailableItems.Select(ci => ci.MakeCardContent()));
         }
 
         public async Task<string> Refresh()
@@ -48,7 +48,7 @@ namespace Mikan.Services
         {
             if (uint.TryParse(key, out uint receivedKey))
             {
-                var foundItem = MikanBackgroundService.CacheItems.FirstOrDefault(ci => ci.Key == receivedKey);
+                var foundItem = MikanBackgroundService.AvailableItems.FirstOrDefault(ci => ci.Key == receivedKey);
                 if (foundItem != null)
                 {
                     await QbittorrentService.AddItem(foundItem.Url);

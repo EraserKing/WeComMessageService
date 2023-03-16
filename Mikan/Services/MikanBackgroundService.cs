@@ -18,7 +18,8 @@ namespace Mikan.Services
         private readonly ILogger<MikanBackgroundService> Logger;
         private readonly IOptions<MikanServiceConfiguration> Options;
         private readonly IServiceProvider ServiceProvider;
-        public readonly List<MikanCacheItem> CacheItems = new List<MikanCacheItem>();
+        public readonly List<MikanCacheItem> AvailableItems = new List<MikanCacheItem>();
+        public readonly List<MikanCacheItem> FetchedItems = new List<MikanCacheItem>();
 
         private Timer RefreshTimer;
         private Timer ClearOutDatedTimer;
@@ -94,16 +95,17 @@ namespace Mikan.Services
                             var links = item.Links.FirstOrDefault(l => l.RelationshipType == "enclosure");
                             if (links != null)
                             {
-                                if (!CacheItems.Any(ci => ci.Title == item.Title))
+                                if (!FetchedItems.Any(ci => ci.Title == item.Title))
                                 {
                                     MikanCacheItem newItem = new MikanCacheItem
                                     {
                                         ReceivedDateTime = DateTime.Now,
                                         Title = item.Title,
                                         Url = links.Uri.AbsoluteUri,
-                                        Key = CacheItems.Count == 0 ? 1 : CacheItems.Select(ci => ci.Key).Max() + 1
+                                        Key = AvailableItems.Count == 0 ? 1 : AvailableItems.Select(ci => ci.Key).Max() + 1
                                     };
-                                    CacheItems.Add(newItem);
+                                    AvailableItems.Add(newItem);
+                                    FetchedItems.Add(newItem);
                                     newItems.Add(newItem);
                                     Logger.LogInformation($"MIKAN: Received new item [{newItem.Key}]: {newItem.Title}, {newItem.Url}");
                                 }
@@ -147,11 +149,23 @@ namespace Mikan.Services
             await UpdateCacheItemLock.WaitAsync();
             try
             {
-                foreach (var itemToClear in CacheItems.Where(ci => ci.ReceivedDateTime.AddHours(Options.Value.ClearAfterHours) < DateTime.Now))
+                var itemsToClear = AvailableItems.Where(ci => ci.ReceivedDateTime.AddHours(Options.Value.ClearAfterHours) < DateTime.Now).ToArray();
+                foreach (var itemToClear in itemsToClear)
                 {
                     Logger.LogInformation($"MIKAN: Remove {itemToClear.Title} due to out-dated");
-                    CacheItems.Remove(itemToClear);
+                    AvailableItems.Remove(itemToClear);
                 }
+
+                var newAvailableItems = AvailableItems.Select((x, i) => new MikanCacheItem
+                {
+                    Title = x.Title,
+                    Key = i + 1,
+                    ReceivedDateTime = x.ReceivedDateTime,
+                    Url = x.Url
+                }).ToArray();
+
+                AvailableItems.Clear();
+                AvailableItems.AddRange(newAvailableItems);
             }
             finally
             {
@@ -164,7 +178,7 @@ namespace Mikan.Services
             await UpdateCacheItemLock.WaitAsync();
             try
             {
-                CacheItems.Clear();
+                AvailableItems.Clear();
             }
             finally
             {
