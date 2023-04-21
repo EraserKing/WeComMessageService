@@ -51,7 +51,9 @@ namespace Mikan.Services
                 var foundItem = MikanBackgroundService.AvailableItems.FirstOrDefault(ci => ci.Key == receivedKey);
                 if (foundItem != null)
                 {
-                    await QbittorrentService.AddItem(foundItem.Url);
+                    HttpClient httpClient = new HttpClient();
+                    var fileStream = await httpClient.GetStreamAsync(foundItem.Url);
+                    await QbittorrentService.AddItem(fileStream, new Uri(foundItem.Url).LocalPath);
                     Logger.LogInformation($"MIKAN: Added torrent {foundItem.Title}");
                     return $"Added torrent of {foundItem.Title}";
 

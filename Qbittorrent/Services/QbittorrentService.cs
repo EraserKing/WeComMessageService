@@ -5,6 +5,7 @@ using Qbittorrent.Models.Configurations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
@@ -74,6 +75,28 @@ namespace Qbittorrent.Services
         public string ListSites()
         {
             return string.Join(Environment.NewLine, Options.Value.Sites.Select(c => $"{(c.Name == ActiveSiteHolder.Get()?.Name ? "[✅]" : "")}{(c.Default ? "[⭐]" : "")}{c.Name}"));
+        }
+
+        public async Task<string> AddItem(Stream torrentContentStream, string fileName)
+        {
+            try
+            {
+                await Login();
+                var multipartFormContent = new MultipartFormDataContent();
+                var fileStreamContent = new StreamContent(torrentContentStream);
+                fileStreamContent.Headers.ContentType = new MediaTypeHeaderValue("application/x-bittorrent");
+                multipartFormContent.Add(fileStreamContent, "torrents", fileName);
+
+                var addTorrentResponse = await Client.PostAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add", multipartFormContent);
+                addTorrentResponse.EnsureSuccessStatusCode();
+                Logger.LogInformation($"QB: Added torrent of with file name {fileName}");
+                return "Done";
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"QB: Unable to add torrent of with file name {fileName} due to {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<string> AddItem(string url)
