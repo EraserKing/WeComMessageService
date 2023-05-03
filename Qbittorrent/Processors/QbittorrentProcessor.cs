@@ -31,7 +31,19 @@ namespace Qbittorrent.Processors
 
         public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, WeComService weComService)
         {
-            if (receiveMessage.Content.Equals("L", StringComparison.OrdinalIgnoreCase))
+            if (receiveMessage.Content.StartsWith("magnet:"))
+            {
+                try
+                {
+                    string message = await QbittorrentService.AddItem(receiveMessage.Content);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                }
+                catch (Exception ex)
+                {
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
+                }
+            }
+            else if (receiveMessage.Content.Equals("L", StringComparison.OrdinalIgnoreCase))
             {
                 new Thread(async () =>
                 {
@@ -166,6 +178,7 @@ namespace Qbittorrent.Processors
             return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, string.Join(Environment.NewLine, new string[]
             {
                 "未知命令，有效的命令为：",
+                "magnet:{hash}: 添加项目",
                 "L: 显示所有项目",
                 "A {URL}: 直接添加下载",
                 "D {ID}: 删除项目",
