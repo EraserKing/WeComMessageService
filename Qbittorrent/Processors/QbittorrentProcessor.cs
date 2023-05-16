@@ -42,6 +42,7 @@ namespace Qbittorrent.Processors
                 {
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
                 }
+                return null;
             }
             else if (receiveMessage.Content.Equals("L", StringComparison.OrdinalIgnoreCase))
             {
