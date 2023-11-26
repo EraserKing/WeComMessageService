@@ -65,7 +65,7 @@ namespace Eastmoney.Services
         public static DateTime GetChinaDateTimeNow()
         {
             DateTime utcNow = DateTime.UtcNow;
-            TimeZoneInfo timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+            TimeZoneInfo timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Asia/Shanghai");
             return TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZoneInfo);
         }
 
