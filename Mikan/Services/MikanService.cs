@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Mikan.Exceptions;
 using Qbittorrent.Services;
+using System.Text.RegularExpressions;
 
 namespace Mikan.Services
 {
@@ -10,6 +10,8 @@ namespace Mikan.Services
         private readonly ILogger<MikanService> Logger;
         private readonly MikanBackgroundService MikanBackgroundService;
         private readonly QbittorrentService QbittorrentService;
+
+        public const string MikanSiteUrl = "https://mikanani.me";
 
         public MikanService(ILogger<MikanService> logger, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
         {
@@ -20,7 +22,7 @@ namespace Mikan.Services
 
         public string CreateList()
         {
-            return string.Join($"{Environment.NewLine}{Environment.NewLine}", MikanBackgroundService.AvailableItems.Select(ci => ci.MakeCardContent()));
+            return string.Join($"{Environment.NewLine}{Environment.NewLine}", MikanBackgroundService.ListItems());
         }
 
         public async Task<string> Refresh()
@@ -68,6 +70,28 @@ namespace Mikan.Services
             {
                 Logger.LogError($"MIKAN: Invalid key {key}");
                 throw new ExecutionException("Unable to recognize the key");
+            }
+        }
+
+        public async Task<string> AddEpisodeById(string episodeId)
+        {
+            var taskUrl = $"{MikanSiteUrl}/Home/Episode/{episodeId}";
+            HttpClient httpClient = new HttpClient();
+            var episodePageResponse = await httpClient.GetAsync(taskUrl);
+            var episodePageString = await episodePageResponse.Content.ReadAsStringAsync();
+            var episodeMatch = new Regex(@"href=\""(.+\.torrent)\""").Match(episodePageString);
+            if (episodeMatch.Success)
+            {
+                var torrentFinalUrl = MikanSiteUrl + episodeMatch.Groups[1].Value;
+                var fileStream = await httpClient.GetStreamAsync(torrentFinalUrl);
+                await QbittorrentService.AddItem(fileStream, new Uri(torrentFinalUrl).LocalPath);
+                Logger.LogInformation($"MIKAN: Added torrent url {torrentFinalUrl}");
+                return $"Added torrent for {torrentFinalUrl}";
+            }
+            else
+            {
+                Logger.LogInformation($"MIKAN: No episode found for this episode ID {episodeId}");
+                return $"No episode found for this episode ID {episodeId}";
             }
         }
     }

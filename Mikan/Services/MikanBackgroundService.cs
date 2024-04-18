@@ -9,6 +9,8 @@ using Mikan.Models.Configurations;
 using Mikan.Models;
 using WeComCommon.Services;
 using WeComCommon.Models;
+using WeComCommon.Models.Configurations;
+using System.Text.RegularExpressions;
 
 namespace Mikan.Services
 {
@@ -18,17 +20,23 @@ namespace Mikan.Services
         private readonly ILogger<MikanBackgroundService> Logger;
         private readonly IOptions<MikanServiceConfiguration> Options;
         private readonly IServiceProvider ServiceProvider;
+        private readonly string SelfSitePrefix;
+
         public readonly List<MikanCacheItem> AvailableItems = new List<MikanCacheItem>();
         public readonly List<MikanCacheItem> FetchedItems = new List<MikanCacheItem>();
 
         private Timer RefreshTimer;
         private Timer ClearOutDatedTimer;
 
-        public MikanBackgroundService(IServiceProvider serviceProvider, ILogger<MikanBackgroundService> logger, IOptions<MikanServiceConfiguration> options)
+        private readonly Regex episodeIdRegex = new Regex(@"([a-f\d]+)\.torrent", RegexOptions.Compiled);
+
+        public MikanBackgroundService(IServiceProvider serviceProvider, ILogger<MikanBackgroundService> logger, IOptions<MikanServiceConfiguration> options, IOptions<WeComServicesConfiguration> weComOptions)
         {
             Logger = logger;
             Options = options;
             ServiceProvider = serviceProvider;
+
+            SelfSitePrefix = weComOptions.Value.AppConfigurations.FirstOrDefault(x => x.AgentId == options.Value.SendByAgentId)?.AppUrlPrefix;
         }
 
         private SemaphoreSlim UpdateCacheItemLock = new SemaphoreSlim(1);
@@ -75,6 +83,11 @@ namespace Mikan.Services
             }, null, 0, 3600 * 1000);
         }
 
+        public IEnumerable<string> ListItems()
+        {
+            return AvailableItems.Select(ci => ci.MakeCardContent(SelfSitePrefix));
+        }
+
         public async Task<string> Refresh()
         {
             List<MikanCacheItem> newItems = new List<MikanCacheItem>();
@@ -82,7 +95,7 @@ namespace Mikan.Services
             await UpdateCacheItemLock.WaitAsync();
             try
             {
-                using var xmlReader = XmlReader.Create($"https://mikanani.me/RSS/MyBangumi?token={Options.Value.MikanToken}", new XmlReaderSettings() { Async = true });
+                using var xmlReader = XmlReader.Create($"{MikanService.MikanSiteUrl}/RSS/MyBangumi?token={Options.Value.MikanToken}", new XmlReaderSettings() { Async = true });
                 var feedReader = new RssFeedReader(xmlReader);
                 Logger.LogInformation($"MIKAN: Fetched from Mikan RSS");
 
@@ -97,11 +110,13 @@ namespace Mikan.Services
                             {
                                 if (!FetchedItems.Any(ci => ci.Title == item.Title))
                                 {
+                                    var episodeIdRegexMatch = episodeIdRegex.Match(links.Uri.AbsoluteUri);
                                     MikanCacheItem newItem = new MikanCacheItem
                                     {
                                         ReceivedDateTime = DateTime.Now,
                                         Title = item.Title,
                                         Url = links.Uri.AbsoluteUri,
+                                        EpisodeId = episodeIdRegexMatch.Success ? episodeIdRegexMatch.Groups[1].Value : null,
                                         Key = AvailableItems.Count == 0 ? 1 : AvailableItems.Select(ci => ci.Key).Max() + 1
                                     };
                                     AvailableItems.Add(newItem);
@@ -135,7 +150,7 @@ namespace Mikan.Services
             if (newItems.Count > 0)
             {
                 Logger.LogInformation($"MIKAN: Found {newItems.Count} items to send");
-                string content = string.Join($"{Environment.NewLine}{Environment.NewLine}", newItems.Select(x => x.MakeCardContent()));
+                string content = string.Join($"{Environment.NewLine}{Environment.NewLine}", newItems.Select(x => x.MakeCardContent(SelfSitePrefix)));
                 return content;
             }
             else

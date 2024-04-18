@@ -4,7 +4,9 @@ using DebtReminder.Models.Configurations;
 using DebtReminder.Processors;
 using DebtReminder.Services;
 using Eastmoney.Services;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.EntityFrameworkCore;
+using Mikan.Controllers;
 using Mikan.Models.Configurations;
 using Mikan.Processors;
 using Mikan.Services;
@@ -52,7 +54,7 @@ if (builder.Environment.IsDevelopment())
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().PartManager.ApplicationParts.Add(new AssemblyPart(typeof(MikanController).Assembly));
 
 builder.Services.AddApplicationInsightsTelemetry();
 
