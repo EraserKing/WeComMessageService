@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Mikan.Exceptions;
 using Qbittorrent.Services;
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Mikan.Services
@@ -85,8 +86,12 @@ namespace Mikan.Services
                 var torrentFinalUrl = MikanSiteUrl + episodeMatch.Groups[1].Value;
                 var fileStream = await httpClient.GetStreamAsync(torrentFinalUrl);
                 await QbittorrentService.AddItem(fileStream, new Uri(torrentFinalUrl).LocalPath);
-                Logger.LogInformation($"MIKAN: Added torrent url {torrentFinalUrl}");
-                return $"Added torrent for {torrentFinalUrl}";
+
+                var episodeNameMatch = new Regex(@"<p class=\""episode-title\"">(.+)</p>").Match(episodePageString);
+                var episodeName = episodeNameMatch.Success ? WebUtility.HtmlDecode(episodeNameMatch.Groups[1].Value) : "Unknown Episode";
+
+                Logger.LogInformation($"MIKAN: Added torrent url {torrentFinalUrl} for {episodeName}");
+                return $"Added torrent for {torrentFinalUrl} for {episodeName}";
             }
             else
             {
