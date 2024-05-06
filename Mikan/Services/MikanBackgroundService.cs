@@ -20,7 +20,6 @@ namespace Mikan.Services
         private readonly ILogger<MikanBackgroundService> Logger;
         private readonly IOptions<MikanServiceConfiguration> Options;
         private readonly IServiceProvider ServiceProvider;
-        private readonly string SelfSitePrefix;
 
         public readonly List<MikanCacheItem> AvailableItems = new List<MikanCacheItem>();
         public readonly List<MikanCacheItem> FetchedItems = new List<MikanCacheItem>();
@@ -30,13 +29,11 @@ namespace Mikan.Services
 
         private readonly Regex episodeIdRegex = new Regex(@"([a-f\d]+)\.torrent", RegexOptions.Compiled);
 
-        public MikanBackgroundService(IServiceProvider serviceProvider, ILogger<MikanBackgroundService> logger, IOptions<MikanServiceConfiguration> options, IOptions<WeComServicesConfiguration> weComOptions)
+        public MikanBackgroundService(IServiceProvider serviceProvider, ILogger<MikanBackgroundService> logger, IOptions<MikanServiceConfiguration> options)
         {
             Logger = logger;
             Options = options;
             ServiceProvider = serviceProvider;
-
-            SelfSitePrefix = weComOptions.Value.AppConfigurations.FirstOrDefault(x => x.AgentId == options.Value.SendByAgentId)?.AppUrlPrefix;
         }
 
         private SemaphoreSlim UpdateCacheItemLock = new SemaphoreSlim(1);
@@ -85,7 +82,7 @@ namespace Mikan.Services
 
         public IEnumerable<string> ListItems()
         {
-            return AvailableItems.Select(ci => ci.MakeCardContent(SelfSitePrefix));
+            return AvailableItems.Select(ci => ci.MakeCardContent(Options.Value.PublicHost));
         }
 
         public async Task<string> Refresh()
@@ -149,8 +146,9 @@ namespace Mikan.Services
 
             if (newItems.Count > 0)
             {
-                Logger.LogInformation($"MIKAN: Found {newItems.Count} items to send");
-                string content = string.Join($"{Environment.NewLine}{Environment.NewLine}", newItems.Select(x => x.MakeCardContent(SelfSitePrefix)));
+                Logger.LogInformation($"MIKAN: Found {newItems.Count} items to send {(string.IsNullOrEmpty(Options.Value.PublicHost) ? "without public host" : $"with public host {Options.Value.PublicHost}")}");
+                string content = string.Join($"{Environment.NewLine}{Environment.NewLine}", newItems.Select(x => x.MakeCardContent(Options.Value.PublicHost)));
+                Logger.LogTrace(content);
                 return content;
             }
             else

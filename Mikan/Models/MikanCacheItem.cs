@@ -8,10 +8,10 @@
         public int Key { get; set; }
         public string EpisodeId { get; set; }
 
-        public string MakeCardContent(string selfSiteBaseUrl)
+        public string MakeCardContent(string publicHost)
         {
-            return (string.IsNullOrEmpty(EpisodeId) || string.IsNullOrEmpty(selfSiteBaseUrl)) ? $"{Key}: {Title}" :
-                @$"<a href=""{selfSiteBaseUrl}mikan/addEpisode?episodeId={EpisodeId}"">{Key}: {Title}</a>";
+            return (string.IsNullOrEmpty(EpisodeId) || string.IsNullOrEmpty(publicHost)) ? $"{Key}: {Title}" :
+                @$"<a href=""{publicHost}/mikan/addEpisode?episodeId={EpisodeId}"">{Key}: {Title}</a>";
         }
     }
 }
