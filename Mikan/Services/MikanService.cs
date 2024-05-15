@@ -12,7 +12,7 @@ namespace Mikan.Services
         private readonly MikanBackgroundService MikanBackgroundService;
         private readonly QbittorrentService QbittorrentService;
 
-        public const string MikanSiteUrl = "https://mikanani.me";
+        public const string MikanSiteUrl = "https://mikanime.tv";
 
         public MikanService(ILogger<MikanService> logger, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
         {
