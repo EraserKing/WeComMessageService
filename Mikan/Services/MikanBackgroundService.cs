@@ -139,6 +139,10 @@ namespace Mikan.Services
                     }
                 }
             }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "MIKAN: Error occurred when fetching RSS");
+            }
             finally
             {
                 UpdateCacheItemLock.Release();
