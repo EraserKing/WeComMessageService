@@ -58,6 +58,15 @@ builder.Services.AddControllers().PartManager.ApplicationParts.Add(new AssemblyP
 
 builder.Services.AddApplicationInsightsTelemetry();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: "default",
+                      policy =>
+                      {
+                          policy.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod();
+                      });
+});
+
 builder.Services.AddDbContextPool<DebtReminderContext>(options => options.UseCosmos(builder.Configuration.GetConnectionString("DebtReminderContext"), "DebtReminder"));
 
 builder.Services.Configure<WeComServicesConfiguration>(builder.Configuration.GetSection("WeComServices"));
@@ -97,6 +106,7 @@ builder.Services.AddHostedService(provider => provider.GetService<MikanBackgroun
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseCors("default");
 
 app.UseAuthorization();
 
