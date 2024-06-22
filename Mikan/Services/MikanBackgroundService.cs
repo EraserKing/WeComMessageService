@@ -134,7 +134,7 @@ namespace Mikan.Services
                             break;
 
                         default:
-                            Logger.LogWarning($"MIKAN: Received unsupported feed of type ${feedReader.ElementType}");
+                            Logger.LogTrace($"MIKAN: Received unsupported feed of type {feedReader.ElementType}");
                             break;
                     }
                 }
