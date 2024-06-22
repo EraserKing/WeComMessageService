@@ -109,5 +109,41 @@ namespace Qinglong.Services
             }
             Logger.LogInformation($"QINGLONG: Execute cron task id {id} done");
         }
+
+        public async Task RerunTodayTasks()
+        {
+            await LoginAsync();
+
+            var findCronResponseMessage = await HttpClient.GetAsync("/open/crons");
+            QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
+            if (findCronResponse == null || findCronResponse.code != 200)
+            {
+                Logger.LogError($"QINGLONG: Find cron task fail with code {findCronResponse?.code}");
+                throw new ExecutionException($"Find cron task fail with code {findCronResponse?.code}");
+            }
+
+            var cstNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.Now, "Asia/Shanghai");
+            Logger.LogInformation($"China Standard Time Now is {cstNow}");
+
+            var cstTodayStart = new DateTimeOffset(cstNow.Year, cstNow.Month, cstNow.Day, 0, 0, 0, new TimeSpan(8, 0, 0));
+            Logger.LogInformation($"China Standard Time Today Start is {cstTodayStart}");
+
+            var ids = findCronResponse?.data?.data?.Where(x => x.last_execution_time > cstTodayStart.ToUnixTimeSeconds() && x.last_execution_time < cstNow.ToUnixTimeSeconds()).Select(x => x.id).ToArray();
+            if (ids == null)
+            {
+                Logger.LogError("QINGLONG: No cron task found");
+                throw new ExecutionException("No cron task found");
+            }
+            Logger.LogInformation($"QINGLONG: Find cron tasks with ids {string.Join(",", ids)}");
+
+            var runConResponseMessage = await HttpClient.PutAsJsonAsync("/open/crons/run", ids);
+            QinglongCronModel? runCronResponse = await runConResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
+            if (runCronResponse == null || runCronResponse.code != 200)
+            {
+                Logger.LogError($"QINGLONG: Run cron task fail with code {runCronResponse?.code}");
+                throw new ExecutionException($"Run cron task fail with code {runCronResponse?.code}");
+            }
+            Logger.LogInformation($"QINGLONG: Execute cron task id {string.Join(", ", ids)} done");
+        }
     }
 }

@@ -18,13 +18,30 @@ namespace Qinglong.Processors
 
         public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, WeComService weComService)
         {
-            if (QinglongService.IsCommandValid(receiveMessage.Content))
+            if (receiveMessage.Content.Equals("RRT", StringComparison.OrdinalIgnoreCase))
+            {
+                new Thread(async () =>
+                {
+                    try
+                    {
+                        await QinglongService.RerunTodayTasks();
+                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Rerun today tasks request sent"));
+                    }
+                    catch (Exception ex)
+                    {
+                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
+                    }
+                }).Start();
+                return null;
+            }
+            else if (QinglongService.IsCommandValid(receiveMessage.Content))
             {
                 new Thread(async () =>
                 {
                     try
                     {
                         await QinglongService.ExecuteCommandAsync(receiveMessage.Content);
+                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Run qinglong task request sent"));
                     }
                     catch (Exception ex)
                     {
