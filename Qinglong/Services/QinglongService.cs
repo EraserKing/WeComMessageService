@@ -92,7 +92,8 @@ namespace Qinglong.Services
                 throw new ExecutionException($"Find cron task fail with code {findCronResponse?.code}");
             }
 
-            var id = findCronResponse?.data?.data?.FirstOrDefault(x => x.name == cronName)?.id;
+            var id = findCronResponse?.data?.data?.FirstOrDefault(x => x.command == cronName)?.id;
+            id ??= findCronResponse?.data?.data?.FirstOrDefault(x => x.name == cronName)?.id;
             if (id == null)
             {
                 Logger.LogError("QINGLONG: No cron task found");
