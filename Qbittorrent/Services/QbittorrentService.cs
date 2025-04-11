@@ -87,9 +87,11 @@ namespace Qbittorrent.Services
                 fileStreamContent.Headers.ContentType = new MediaTypeHeaderValue("application/x-bittorrent");
                 multipartFormContent.Add(fileStreamContent, "torrents", fileName);
 
-                var addTorrentResponse = await Client.PostAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add", multipartFormContent);
+                var finalUrl = $"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add";
+
+                var addTorrentResponse = await Client.PostAsync(finalUrl, multipartFormContent);
                 addTorrentResponse.EnsureSuccessStatusCode();
-                Logger.LogInformation($"QB: Added torrent of with file name {fileName}");
+                Logger.LogInformation($"QB: Added torrent of with file name {fileName} by {finalUrl}");
                 return "Done";
             }
             catch (Exception ex)
