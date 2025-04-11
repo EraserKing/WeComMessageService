@@ -107,12 +107,15 @@ namespace Qbittorrent.Services
             {
                 await Login();
                 var addTorrentContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("urls", url)
-            });
-                var addTorrentResponse = await Client.PostAsync($"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add", addTorrentContent);
+                {
+                    new KeyValuePair<string, string>("urls", url)
+                });
+
+                var finalUrl = $"{ActiveSiteHolder.Get()?.QbUrl}/api/v2/torrents/add";
+
+                var addTorrentResponse = await Client.PostAsync(finalUrl, addTorrentContent);
                 addTorrentResponse.EnsureSuccessStatusCode();
-                Logger.LogInformation($"QB: Added torrent of with url {url}");
+                Logger.LogInformation($"QB: Added torrent of with url {url} by {finalUrl}");
                 return "Done";
             }
             catch (Exception ex)
