@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.Extensions;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text;
 using Utilities.Utilities;
@@ -37,8 +36,8 @@ namespace WeComMessageService.Controllers
                     WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
                     foreach (var appConfiguration in WeComConfiguration.AppConfigurations)
                     {
-                        Logger.LogInformation($"HOMESERVICE: Create crypts for {appConfiguration.AppUrlPrefix}...");
-                        WXBizMsgCrypts[appConfiguration.AppUrlPrefix] = new WXBizMsgCrypt(appConfiguration.Message.Token, appConfiguration.Message.EncodingAESKey, appConfiguration.CorpId);
+                        Logger.LogInformation($"HOMESERVICE: Create crypts for {appConfiguration.AppId}...");
+                        WXBizMsgCrypts[appConfiguration.AppId] = new WXBizMsgCrypt(appConfiguration.Message.Token, appConfiguration.Message.EncodingAESKey, appConfiguration.CorpId);
                     }
                 }
             }
@@ -46,10 +45,10 @@ namespace WeComMessageService.Controllers
 
         private WXBizMsgCrypt GetCryptFromRequest(HttpRequest httpRequest)
         {
-            httpRequest.Headers.TryGetValue("X-Upstream", out var upstreamUrlValues);
-            string sourceUrl = upstreamUrlValues.Count > 0 ? string.Join(string.Empty, upstreamUrlValues) : httpRequest.GetDisplayUrl();
-            Logger.LogInformation($"HOMESERVICE: Get request to {sourceUrl}");
-            return WXBizMsgCrypts.First(x => sourceUrl.StartsWith(x.Key, StringComparison.OrdinalIgnoreCase)).Value;
+            httpRequest.Headers.TryGetValue("X-App-Id", out var appIds);
+            string appId = appIds.Count > 0 ? string.Join(string.Empty, appIds): string.Empty;
+            Logger.LogInformation($"HOMESERVICE: Get request to {appId}");
+            return WXBizMsgCrypts.First(x => string.Equals(appId, x.Key, StringComparison.OrdinalIgnoreCase)).Value;
         }
 
         [HttpGet("/")]

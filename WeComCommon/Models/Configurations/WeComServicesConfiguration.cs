@@ -12,7 +12,7 @@
         public string CorpId { get; set; }
         public string CorpSecret { get; set; }
         public ulong AgentId { get; set; }
-        public string AppUrlPrefix { get; set; }
+        public string AppId { get; set; }
         public WeComConfigurationReceiveMessage Message { get; set; }
     }
 
