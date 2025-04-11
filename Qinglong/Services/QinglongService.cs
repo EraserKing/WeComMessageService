@@ -44,7 +44,6 @@ namespace Qinglong.Services
                 return;
             }
 
-            HttpClient.DefaultRequestHeaders.Remove("Authorization");
             Logger.LogInformation("QINGLONG: Ready to log in");
 
             var authMessage = await HttpClient.GetAsync(QueryHelpers.AddQueryString("/open/auth/token", new Dictionary<string, string?>
@@ -61,7 +60,7 @@ namespace Qinglong.Services
             else if (authResponse.code == 200)
             {
                 Logger.LogInformation($"QINGLONG: Token obtained, expiration is {authResponse.data.expiration}");
-                HttpClient.DefaultRequestHeaders.Add("Authorization", $"{authResponse.data.token_type} {authResponse.data.token}");
+                HttpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(authResponse.data.token_type, authResponse.data.token);
                 TokenExpiration = authResponse.data.expiration;
             }
             else if (authResponse.code == 400)
