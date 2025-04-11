@@ -55,8 +55,7 @@ namespace Mikan.Services
                 if (foundItem != null)
                 {
                     HttpClient httpClient = new HttpClient();
-                    var fileStream = await httpClient.GetStreamAsync(foundItem.Url);
-                    await QbittorrentService.AddItem(fileStream, new Uri(foundItem.Url).LocalPath);
+                    await QbittorrentService.AddItem(foundItem.Url);
                     Logger.LogInformation($"MIKAN: Added torrent {foundItem.Title}");
                     return $"Added torrent of {foundItem.Title}";
 
@@ -84,8 +83,7 @@ namespace Mikan.Services
             if (episodeMatch.Success)
             {
                 var torrentFinalUrl = MikanSiteUrl + episodeMatch.Groups[1].Value;
-                var fileStream = await httpClient.GetStreamAsync(torrentFinalUrl);
-                await QbittorrentService.AddItem(fileStream, new Uri(torrentFinalUrl).LocalPath);
+                await QbittorrentService.AddItem(torrentFinalUrl);
 
                 var episodeNameMatch = new Regex(@"<p class=\""episode-title\"">(.+)</p>").Match(episodePageString);
                 var episodeName = episodeNameMatch.Success ? WebUtility.HtmlDecode(episodeNameMatch.Groups[1].Value) : "Unknown Episode";
