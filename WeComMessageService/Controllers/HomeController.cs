@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System.Text;
 using Utilities.Utilities;
@@ -19,14 +20,20 @@ namespace WeComMessageService.Controllers
 
         private readonly WeComService WeComService;
 
+        private readonly IMemoryCache MemoryCache;
+
         private static Dictionary<string, WXBizMsgCrypt> WXBizMsgCrypts = null;
         private static object CryptsInitializeLock = new object();
+        
+        // Dedupe cache expiration time - 1 minute
+        private static readonly TimeSpan MessageDedupeWindow = TimeSpan.FromMinutes(1);
 
-        public HomeController(IOptions<WeComServicesConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService)
+        public HomeController(IOptions<WeComServicesConfiguration> weComConfiguration, ILogger<HomeController> logger, WeComService weComService, IMemoryCache memoryCache)
         {
             WeComConfiguration = weComConfiguration.Value;
             WeComService = weComService;
             Logger = logger;
+            MemoryCache = memoryCache;
 
             if (WXBizMsgCrypts == null)
             {
@@ -76,6 +83,17 @@ namespace WeComMessageService.Controllers
         public async Task<ActionResult<string>> ReceiveMessageAsync([FromQuery] string msg_signature, [FromQuery] string timestamp, [FromQuery] string nonce)
         {
             Logger.LogInformation($"HOME: RECEIVE_MESSAGE, MSG_SIGNATURE: {msg_signature} TIMESTAMP: {timestamp} NONCE: {nonce}");
+
+            // Check for duplicate message
+            string messageKey = $"{msg_signature}:{timestamp}:{nonce}";
+            if (MemoryCache.TryGetValue(messageKey, out _))
+            {
+                Logger.LogInformation($"HOME: RECEIVE_MESSAGE, DUPLICATE DETECTED: {messageKey}");
+                return Ok("success"); // Return success without processing to avoid duplicate processing
+            }
+
+            // Add to cache to mark this message as processed
+            MemoryCache.Set(messageKey, true, MessageDedupeWindow);
 
             // Read body
             string receivedBodyString = await new StreamReader(Request.Body, Encoding.UTF8).ReadToEndAsync();
