@@ -67,6 +67,9 @@ builder.Services.AddCors(options =>
                       });
 });
 
+// Add memory cache for message deduplication
+builder.Services.AddMemoryCache();
+
 builder.Services.AddDbContextPool<DebtReminderContext>(options => options.UseCosmos(builder.Configuration.GetConnectionString("DebtReminderContext"), "DebtReminder"));
 
 builder.Services.Configure<WeComServicesConfiguration>(builder.Configuration.GetSection("WeComServices"));
