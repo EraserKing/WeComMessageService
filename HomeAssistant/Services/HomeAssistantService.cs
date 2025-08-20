@@ -1,4 +1,4 @@
-using HomeAssistant.Models;
+ï»¿using HomeAssistant.Models;
 using HomeAssistant.Models.Configurations;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -22,77 +22,77 @@ namespace HomeAssistant.Services
         private readonly Dictionary<string, string> _chineseCommandMap = new(StringComparer.OrdinalIgnoreCase)
         {
             // Basic commands
-            ["×´Ì¬"] = "status",
-            ["´ò¿ª"] = "turn_on",
-            ["¿ªÆô"] = "turn_on",
-            ["¹Ø±Õ"] = "turn_off",
-            ["ÇĞ»»"] = "toggle",
-            ["²é¿´"] = "state",
-            ["×´Ì¬²éÑ¯"] = "state",
-            ["ÁĞ±í"] = "list",
-            ["ÖØÔØ"] = "reload",
-            ["·şÎñ"] = "service",
+            ["çŠ¶æ€"] = "status",
+            ["æ‰“å¼€"] = "turn_on",
+            ["å¼€å¯"] = "turn_on",
+            ["å…³é—­"] = "turn_off",
+            ["åˆ‡æ¢"] = "toggle",
+            ["æŸ¥çœ‹"] = "state",
+            ["çŠ¶æ€æŸ¥è¯¢"] = "state",
+            ["åˆ—è¡¨"] = "list",
+            ["é‡è½½"] = "reload",
+            ["æœåŠ¡"] = "service",
 
             // Climate commands
-            ["¿Õµ÷"] = "climate",
-            ["ÎÂ¶È"] = "temperature",
-            ["Ä£Ê½"] = "mode",
-            ["Ô¤Éè"] = "preset",
-            ["·çÉÈÄ£Ê½"] = "fan_mode",
-            ["Êª¶È"] = "humidity",
+            ["ç©ºè°ƒ"] = "climate",
+            ["æ¸©åº¦"] = "temperature",
+            ["æ¨¡å¼"] = "mode",
+            ["é¢„è®¾"] = "preset",
+            ["é£æ‰‡æ¨¡å¼"] = "fan_mode",
+            ["æ¹¿åº¦"] = "humidity",
 
             // Light commands
-            ["µÆ¹â"] = "light",
-            ["ÁÁ¶È"] = "brightness",
-            ["ÑÕÉ«"] = "color",
-            ["É«ÎÂ"] = "temperature",
+            ["ç¯å…‰"] = "light",
+            ["äº®åº¦"] = "brightness",
+            ["é¢œè‰²"] = "color",
+            ["è‰²æ¸©"] = "temperature",
 
             // Other commands
-            ["´«¸ĞÆ÷"] = "sensor",
-            ["×Ô¶¯»¯"] = "automation",
-            ["½Å±¾"] = "script",
-            ["´¥·¢"] = "trigger",
-            ["°ïÖú"] = "help"
+            ["ä¼ æ„Ÿå™¨"] = "sensor",
+            ["è‡ªåŠ¨åŒ–"] = "automation",
+            ["è„šæœ¬"] = "script",
+            ["è§¦å‘"] = "trigger",
+            ["å¸®åŠ©"] = "help"
         };
 
         private static readonly string helpMessage = string.Join(Environment.NewLine,
             [
-                "Home Assistant ÃüÁî / Commands:",
+                "Home Assistant å‘½ä»¤ / Commands:",
                 "",
-                "»ù±¾ÃüÁî / Basic Commands:",
-                "status/×´Ì¬ - »ñÈ¡ Home Assistant ×´Ì¬ / Get Home Assistant status",
-                "turn_on/´ò¿ª/¿ªÆô <Éè±¸> - ´ò¿ªÉè±¸ / Turn on an entity",
-                "turn_off/¹Ø±Õ <Éè±¸> - ¹Ø±ÕÉè±¸ / Turn off an entity",
-                "toggle/ÇĞ»» <Éè±¸> - ÇĞ»»Éè±¸×´Ì¬ / Toggle an entity",
-                "state/×´Ì¬²éÑ¯ <Éè±¸> - »ñÈ¡Éè±¸×´Ì¬ / Get entity state",
-                "list/ÁĞ±í <Óò> - ÁĞ³öÉè±¸ (ÀıÈç: list light) / List entities",
-                "reload/ÖØÔØ - ÖØÔØÉè±¸Ãû³ÆÓ³Éä / Reload entity name mappings",
+                "åŸºæœ¬å‘½ä»¤ / Basic Commands:",
+                "status/çŠ¶æ€ - è·å– Home Assistant çŠ¶æ€ / Get Home Assistant status",
+                "turn_on/æ‰“å¼€/å¼€å¯ <è®¾å¤‡> - æ‰“å¼€è®¾å¤‡ / Turn on an entity",
+                "turn_off/å…³é—­ <è®¾å¤‡> - å…³é—­è®¾å¤‡ / Turn off an entity",
+                "toggle/åˆ‡æ¢ <è®¾å¤‡> - åˆ‡æ¢è®¾å¤‡çŠ¶æ€ / Toggle an entity",
+                "state/çŠ¶æ€æŸ¥è¯¢ <è®¾å¤‡> - è·å–è®¾å¤‡çŠ¶æ€ / Get entity state",
+                "list/åˆ—è¡¨ <åŸŸ> - åˆ—å‡ºè®¾å¤‡ (ä¾‹å¦‚: list light) / List entities",
+                "reload/é‡è½½ - é‡è½½è®¾å¤‡åç§°æ˜ å°„ / Reload entity name mappings",
                 "",
-                "¿Õµ÷ÃüÁî / Climate Commands:",
-                "climate/¿Õµ÷ temperature/ÎÂ¶È <Éè±¸> <ÎÂ¶È> - ÉèÖÃÎÂ¶È / Set temperature",
-                "climate/¿Õµ÷ mode/Ä£Ê½ <Éè±¸> <Ä£Ê½> - ÉèÖÃHVACÄ£Ê½ / Set HVAC mode",
-                "climate/¿Õµ÷ preset/Ô¤Éè <Éè±¸> <Ô¤Éè> - ÉèÖÃÔ¤ÉèÄ£Ê½ / Set preset mode",
-                "climate/¿Õµ÷ fan_mode/·çÉÈÄ£Ê½ <Éè±¸> <Ä£Ê½> - ÉèÖÃ·çÉÈÄ£Ê½ / Set fan mode",
+                "ç©ºè°ƒå‘½ä»¤ / Climate Commands:",
+                "climate/ç©ºè°ƒ temperature/æ¸©åº¦ <è®¾å¤‡> <æ¸©åº¦> - è®¾ç½®æ¸©åº¦ / Set temperature",
+                "climate/ç©ºè°ƒ mode/æ¨¡å¼ <è®¾å¤‡> <æ¨¡å¼> - è®¾ç½®HVACæ¨¡å¼ / Set HVAC mode",
+                "climate/ç©ºè°ƒ preset/é¢„è®¾ <è®¾å¤‡> <é¢„è®¾> - è®¾ç½®é¢„è®¾æ¨¡å¼ / Set preset mode",
+                "climate/ç©ºè°ƒ fan_mode/é£æ‰‡æ¨¡å¼ <è®¾å¤‡> <æ¨¡å¼> - è®¾ç½®é£æ‰‡æ¨¡å¼ / Set fan mode",
                 "",
-                "µÆ¹âÃüÁî / Light Commands:",
-                "light/µÆ¹â brightness/ÁÁ¶È <Éè±¸> <0-255> - ÉèÖÃÁÁ¶È / Set brightness",
-                "light/µÆ¹â color/ÑÕÉ« <Éè±¸> <ÑÕÉ«> - ÉèÖÃÑÕÉ« / Set color",
-                "light/µÆ¹â temperature/É«ÎÂ <Éè±¸> <¿ª¶ûÎÄ> - ÉèÖÃÉ«ÎÂ / Set color temperature",
+                "ç¯å…‰å‘½ä»¤ / Light Commands:",
+                "light/ç¯å…‰ brightness/äº®åº¦ <è®¾å¤‡> <0-255> - è®¾ç½®äº®åº¦ / Set brightness",
+                "light/ç¯å…‰ color/é¢œè‰² <è®¾å¤‡> <é¢œè‰²> - è®¾ç½®é¢œè‰² / Set color",
+                "light/ç¯å…‰ temperature/è‰²æ¸© <è®¾å¤‡> <å¼€å°”æ–‡> - è®¾ç½®è‰²æ¸© / Set color temperature",
                 "",
-                "ÆäËûÃüÁî / Other Commands:",
-                "sensor/´«¸ĞÆ÷ <Éè±¸> - »ñÈ¡´«¸ĞÆ÷Öµ / Get sensor value",
-                "automation/×Ô¶¯»¯ trigger/´¥·¢ <Éè±¸> - ´¥·¢×Ô¶¯»¯ / Trigger automation",
-                "script/½Å±¾ <Éè±¸> - ÔËĞĞ½Å±¾ / Run script",
-                "service/·şÎñ <Óò> <·şÎñ> [Éè±¸] [²ÎÊı] - µ÷ÓÃÈÎºÎ·şÎñ / Call any service",
+                "å…¶ä»–å‘½ä»¤ / Other Commands:",
+                "sensor/ä¼ æ„Ÿå™¨ <è®¾å¤‡> - è·å–ä¼ æ„Ÿå™¨å€¼ / Get sensor value",
+                "automation/è‡ªåŠ¨åŒ– trigger/è§¦å‘ <è®¾å¤‡> - è§¦å‘è‡ªåŠ¨åŒ– / Trigger automation",
+                "script/è„šæœ¬ <è®¾å¤‡> - è¿è¡Œè„šæœ¬ / Run script",
+                "service/æœåŠ¡ <åŸŸ> <æœåŠ¡> [è®¾å¤‡] [å‚æ•°] - è°ƒç”¨ä»»ä½•æœåŠ¡ / Call any service",
                 "",
-                "×¢Òâ: Äú¿ÉÒÔÊ¹ÓÃÉè±¸ID (light.living_room) »òÓÑºÃÃû³Æ (¿ÍÌüµÆ)",
+                "æ³¨æ„: æ‚¨å¯ä»¥ä½¿ç”¨è®¾å¤‡ID (light.living_room) æˆ–å‹å¥½åç§° (å®¢å…ç¯)",
                 "Note: You can use either entity IDs or friendly names",
                 "",
-                "Ê¾Àı / Examples:",
-                "´ò¿ª ¿ÍÌüµÆ / turn_on Living Room Light",
-                "¿Õµ÷ ÎÂ¶È ¿ÍÌü¿Õµ÷ 22 / climate temperature Thermostat 22",
-                "µÆ¹â ÁÁ¶È ÎÔÊÒµÆ 128 / light brightness Bedroom Light 128",
-                "×´Ì¬²éÑ¯ ÎÂ¶È´«¸ĞÆ÷ / state Temperature Sensor"
+                "ç¤ºä¾‹ / Examples:",
+                "æ‰“å¼€ å®¢å…ç¯ / turn_on Living Room Light",
+                "ç©ºè°ƒ æ¸©åº¦ å®¢å…ç©ºè°ƒ 22 / climate temperature Thermostat 22",
+                "ç¯å…‰ äº®åº¦ å§å®¤ç¯ 128 / light brightness Bedroom Light 128",
+                "çŠ¶æ€æŸ¥è¯¢ æ¸©åº¦ä¼ æ„Ÿå™¨ / state Temperature Sensor"
             ]);
 
         public HomeAssistantService(IOptions<HomeAssistantConfiguration> configuration, ILogger<HomeAssistantService> logger, IMemoryCache cache)
@@ -119,7 +119,7 @@ namespace HomeAssistant.Services
         {
             if (!Configuration.IsEnabled)
             {
-                return "Home Assistant ·şÎñÒÑ½ûÓÃ¡£";
+                return "Home Assistant æœåŠ¡å·²ç¦ç”¨ã€‚";
             }
 
             try
@@ -142,7 +142,7 @@ namespace HomeAssistant.Services
 
                     case "turn_on":
                         if (parts.Length < 2)
-                            return "ÓÃ·¨: turn_on <Éè±¸ID»òÃû³Æ> / Usage: turn_on <entity_id_or_name>";
+                            return "ç”¨æ³•: turn_on <è®¾å¤‡IDæˆ–åç§°> / Usage: turn_on <entity_id_or_name>";
                         var entity = await ResolveEntityAsync(parts[1]);
                         if (entity.StartsWith("MULTIPLE:"))
                             return entity;
@@ -150,7 +150,7 @@ namespace HomeAssistant.Services
 
                     case "turn_off":
                         if (parts.Length < 2)
-                            return "ÓÃ·¨: turn_off <Éè±¸ID»òÃû³Æ> / Usage: turn_off <entity_id_or_name>";
+                            return "ç”¨æ³•: turn_off <è®¾å¤‡IDæˆ–åç§°> / Usage: turn_off <entity_id_or_name>";
                         entity = await ResolveEntityAsync(parts[1]);
                         if (entity.StartsWith("MULTIPLE:"))
                             return entity;
@@ -158,7 +158,7 @@ namespace HomeAssistant.Services
 
                     case "toggle":
                         if (parts.Length < 2)
-                            return "ÓÃ·¨: toggle <Éè±¸ID»òÃû³Æ> / Usage: toggle <entity_id_or_name>";
+                            return "ç”¨æ³•: toggle <è®¾å¤‡IDæˆ–åç§°> / Usage: toggle <entity_id_or_name>";
                         entity = await ResolveEntityAsync(parts[1]);
                         if (entity.StartsWith("MULTIPLE:"))
                             return entity;
@@ -166,7 +166,7 @@ namespace HomeAssistant.Services
 
                     case "state":
                         if (parts.Length < 2)
-                            return "ÓÃ·¨: state <Éè±¸ID»òÃû³Æ> / Usage: state <entity_id_or_name>";
+                            return "ç”¨æ³•: state <è®¾å¤‡IDæˆ–åç§°> / Usage: state <entity_id_or_name>";
                         entity = await ResolveEntityAsync(parts[1]);
                         if (entity.StartsWith("MULTIPLE:"))
                             return entity;
@@ -174,7 +174,7 @@ namespace HomeAssistant.Services
 
                     case "service":
                         if (parts.Length < 3)
-                            return "ÓÃ·¨: service <Óò> <·şÎñ> [Éè±¸ID»òÃû³Æ] [¸½¼Ó²ÎÊı] / Usage: service <domain> <service> [entity_id_or_name] [additional_params]";
+                            return "ç”¨æ³•: service <åŸŸ> <æœåŠ¡> [è®¾å¤‡IDæˆ–åç§°] [é™„åŠ å‚æ•°] / Usage: service <domain> <service> [entity_id_or_name] [additional_params]";
                         var entityId = parts.Length > 3 ? await ResolveEntityAsync(parts[3]) : null;
                         if (entityId != null && entityId.StartsWith("MULTIPLE:"))
                             return entityId;
@@ -183,7 +183,7 @@ namespace HomeAssistant.Services
 
                     case "list":
                         if (parts.Length < 2)
-                            return "ÓÃ·¨: list <Óò> (ÀıÈç: list light, list sensor, list climate) / Usage: list <domain> (e.g., list light, list sensor, list climate)";
+                            return "ç”¨æ³•: list <åŸŸ> (ä¾‹å¦‚: list light, list sensor, list climate) / Usage: list <domain> (e.g., list light, list sensor, list climate)";
                         return await ListEntitiesAsync(parts[1]);
 
                     case "climate":
@@ -214,7 +214,7 @@ namespace HomeAssistant.Services
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error executing Home Assistant command: {Command}", command);
-                return $"´íÎó / Error: {ex.Message}";
+                return $"é”™è¯¯ / Error: {ex.Message}";
             }
         }
 
@@ -234,7 +234,7 @@ namespace HomeAssistant.Services
         {
             if (parts.Length < 2)
             {
-                return "ÓÃ·¨: climate <¶¯×÷> <Éè±¸ID»òÃû³Æ> [Öµ]\n¶¯×÷: temperature/ÎÂ¶È, mode/Ä£Ê½, preset/Ô¤Éè, fan_mode/·çÉÈÄ£Ê½, humidity/Êª¶È\n" +
+                return "ç”¨æ³•: climate <åŠ¨ä½œ> <è®¾å¤‡IDæˆ–åç§°> [å€¼]\nåŠ¨ä½œ: temperature/æ¸©åº¦, mode/æ¨¡å¼, preset/é¢„è®¾, fan_mode/é£æ‰‡æ¨¡å¼, humidity/æ¹¿åº¦\n" +
                        "Usage: climate <action> <entity_id_or_name> [value]\nActions: temperature, mode, preset, fan_mode, humidity";
             }
 
@@ -249,36 +249,36 @@ namespace HomeAssistant.Services
                 case "temperature":
                 case "temp":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: climate temperature <Éè±¸ID»òÃû³Æ> <ÎÂ¶È> / Usage: climate temperature <entity_id_or_name> <temperature>";
+                        return "ç”¨æ³•: climate temperature <è®¾å¤‡IDæˆ–åç§°> <æ¸©åº¦> / Usage: climate temperature <entity_id_or_name> <temperature>";
                     if (!double.TryParse(parts[2], out var temperature))
-                        return "ÎŞĞ§µÄÎÂ¶ÈÖµ / Invalid temperature value";
+                        return "æ— æ•ˆçš„æ¸©åº¦å€¼ / Invalid temperature value";
                     return await CallServiceAsync("climate", "set_temperature", entity, $"temperature:{temperature}");
 
                 case "mode":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: climate mode <Éè±¸ID»òÃû³Æ> <Ä£Ê½> (heat/cool/heat_cool/auto/off/dry/fan_only) / Usage: climate mode <entity_id_or_name> <mode>";
+                        return "ç”¨æ³•: climate mode <è®¾å¤‡IDæˆ–åç§°> <æ¨¡å¼> (heat/cool/heat_cool/auto/off/dry/fan_only) / Usage: climate mode <entity_id_or_name> <mode>";
                     return await CallServiceAsync("climate", "set_hvac_mode", entity, $"hvac_mode:{parts[2]}");
 
                 case "preset":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: climate preset <Éè±¸ID»òÃû³Æ> <Ô¤ÉèÄ£Ê½> / Usage: climate preset <entity_id_or_name> <preset_mode>";
+                        return "ç”¨æ³•: climate preset <è®¾å¤‡IDæˆ–åç§°> <é¢„è®¾æ¨¡å¼> / Usage: climate preset <entity_id_or_name> <preset_mode>";
                     return await CallServiceAsync("climate", "set_preset_mode", entity, $"preset_mode:{parts[2]}");
 
                 case "fan_mode":
                 case "fan":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: climate fan_mode <Éè±¸ID»òÃû³Æ> <·çÉÈÄ£Ê½> / Usage: climate fan_mode <entity_id_or_name> <fan_mode>";
+                        return "ç”¨æ³•: climate fan_mode <è®¾å¤‡IDæˆ–åç§°> <é£æ‰‡æ¨¡å¼> / Usage: climate fan_mode <entity_id_or_name> <fan_mode>";
                     return await CallServiceAsync("climate", "set_fan_mode", entity, $"fan_mode:{parts[2]}");
 
                 case "humidity":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: climate humidity <Éè±¸ID»òÃû³Æ> <Êª¶È> / Usage: climate humidity <entity_id_or_name> <humidity>";
+                        return "ç”¨æ³•: climate humidity <è®¾å¤‡IDæˆ–åç§°> <æ¹¿åº¦> / Usage: climate humidity <entity_id_or_name> <humidity>";
                     if (!int.TryParse(parts[2], out var humidity))
-                        return "ÎŞĞ§µÄÊª¶ÈÖµ / Invalid humidity value";
+                        return "æ— æ•ˆçš„æ¹¿åº¦å€¼ / Invalid humidity value";
                     return await CallServiceAsync("climate", "set_humidity", entity, $"humidity:{humidity}");
 
                 default:
-                    return "Î´ÖªµÄ¿Õµ÷¶¯×÷¡£¿ÉÓÃ: temperature/ÎÂ¶È, mode/Ä£Ê½, preset/Ô¤Éè, fan_mode/·çÉÈÄ£Ê½, humidity/Êª¶È\n" +
+                    return "æœªçŸ¥çš„ç©ºè°ƒåŠ¨ä½œã€‚å¯ç”¨: temperature/æ¸©åº¦, mode/æ¨¡å¼, preset/é¢„è®¾, fan_mode/é£æ‰‡æ¨¡å¼, humidity/æ¹¿åº¦\n" +
                            "Unknown climate action. Available: temperature, mode, preset, fan_mode, humidity";
             }
         }
@@ -287,7 +287,7 @@ namespace HomeAssistant.Services
         {
             if (parts.Length < 2)
             {
-                return "ÓÃ·¨: light <¶¯×÷> <Éè±¸ID»òÃû³Æ> [Öµ]\n¶¯×÷: brightness/ÁÁ¶È, color/ÑÕÉ«, temperature/É«ÎÂ\n" +
+                return "ç”¨æ³•: light <åŠ¨ä½œ> <è®¾å¤‡IDæˆ–åç§°> [å€¼]\nåŠ¨ä½œ: brightness/äº®åº¦, color/é¢œè‰², temperature/è‰²æ¸©\n" +
                        "Usage: light <action> <entity_id_or_name> [value]\nActions: brightness, color, temperature";
             }
 
@@ -302,26 +302,26 @@ namespace HomeAssistant.Services
                 case "brightness":
                 case "bright":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: light brightness <Éè±¸ID»òÃû³Æ> <0-255> / Usage: light brightness <entity_id_or_name> <0-255>";
+                        return "ç”¨æ³•: light brightness <è®¾å¤‡IDæˆ–åç§°> <0-255> / Usage: light brightness <entity_id_or_name> <0-255>";
                     if (!int.TryParse(parts[2], out var brightness) || brightness < 0 || brightness > 255)
-                        return "ÎŞĞ§µÄÁÁ¶ÈÖµ (0-255) / Invalid brightness value (0-255)";
+                        return "æ— æ•ˆçš„äº®åº¦å€¼ (0-255) / Invalid brightness value (0-255)";
                     return await CallServiceAsync("light", "turn_on", entity, $"brightness:{brightness}");
 
                 case "color":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: light color <Éè±¸ID»òÃû³Æ> <ÑÕÉ«Ãû³Æ|#hex|rgb(r,g,b)> / Usage: light color <entity_id_or_name> <color_name|#hex|rgb(r,g,b)>";
+                        return "ç”¨æ³•: light color <è®¾å¤‡IDæˆ–åç§°> <é¢œè‰²åç§°|#hex|rgb(r,g,b)> / Usage: light color <entity_id_or_name> <color_name|#hex|rgb(r,g,b)>";
                     return await CallServiceAsync("light", "turn_on", entity, $"color_name:{parts[2]}");
 
                 case "temperature":
                 case "temp":
                     if (parts.Length < 3)
-                        return "ÓÃ·¨: light temperature <Éè±¸ID»òÃû³Æ> <É«ÎÂ¿ª¶ûÎÄÖµ> / Usage: light temperature <entity_id_or_name> <color_temp_kelvin>";
+                        return "ç”¨æ³•: light temperature <è®¾å¤‡IDæˆ–åç§°> <è‰²æ¸©å¼€å°”æ–‡å€¼> / Usage: light temperature <entity_id_or_name> <color_temp_kelvin>";
                     if (!int.TryParse(parts[2], out var colorTemp))
-                        return "ÎŞĞ§µÄÉ«ÎÂÖµ / Invalid color temperature value";
+                        return "æ— æ•ˆçš„è‰²æ¸©å€¼ / Invalid color temperature value";
                     return await CallServiceAsync("light", "turn_on", entity, $"color_temp_kelvin:{colorTemp}");
 
                 default:
-                    return "Î´ÖªµÄµÆ¹â¶¯×÷¡£¿ÉÓÃ: brightness/ÁÁ¶È, color/ÑÕÉ«, temperature/É«ÎÂ\n" +
+                    return "æœªçŸ¥çš„ç¯å…‰åŠ¨ä½œã€‚å¯ç”¨: brightness/äº®åº¦, color/é¢œè‰², temperature/è‰²æ¸©\n" +
                            "Unknown light action. Available: brightness, color, temperature";
             }
         }
@@ -330,7 +330,7 @@ namespace HomeAssistant.Services
         {
             if (parts.Length < 1)
             {
-                return "ÓÃ·¨: sensor <Éè±¸ID»òÃû³Æ> / Usage: sensor <entity_id_or_name>";
+                return "ç”¨æ³•: sensor <è®¾å¤‡IDæˆ–åç§°> / Usage: sensor <entity_id_or_name>";
             }
 
             var entity = await ResolveEntityAsync(parts[0]);
@@ -343,7 +343,7 @@ namespace HomeAssistant.Services
         {
             if (parts.Length < 2)
             {
-                return "ÓÃ·¨: automation <¶¯×÷> <Éè±¸ID»òÃû³Æ>\n¶¯×÷: trigger/´¥·¢, turn_on/¿ªÆô, turn_off/¹Ø±Õ, reload/ÖØÔØ\n" +
+                return "ç”¨æ³•: automation <åŠ¨ä½œ> <è®¾å¤‡IDæˆ–åç§°>\nåŠ¨ä½œ: trigger/è§¦å‘, turn_on/å¼€å¯, turn_off/å…³é—­, reload/é‡è½½\n" +
                        "Usage: automation <action> <entity_id_or_name>\nActions: trigger, turn_on, turn_off, reload";
             }
 
@@ -368,7 +368,7 @@ namespace HomeAssistant.Services
                     return await CallServiceAsync("automation", "reload", null);
 
                 default:
-                    return "Î´ÖªµÄ×Ô¶¯»¯¶¯×÷¡£¿ÉÓÃ: trigger/´¥·¢, turn_on/¿ªÆô, turn_off/¹Ø±Õ, reload/ÖØÔØ\n" +
+                    return "æœªçŸ¥çš„è‡ªåŠ¨åŒ–åŠ¨ä½œã€‚å¯ç”¨: trigger/è§¦å‘, turn_on/å¼€å¯, turn_off/å…³é—­, reload/é‡è½½\n" +
                            "Unknown automation action. Available: trigger, turn_on, turn_off, reload";
             }
         }
@@ -377,7 +377,7 @@ namespace HomeAssistant.Services
         {
             if (parts.Length < 1)
             {
-                return "ÓÃ·¨: script <Éè±¸ID»òÃû³Æ> / Usage: script <entity_id_or_name>";
+                return "ç”¨æ³•: script <è®¾å¤‡IDæˆ–åç§°> / Usage: script <entity_id_or_name>";
             }
 
             var entity = await ResolveEntityAsync(parts[0]);
@@ -430,12 +430,12 @@ namespace HomeAssistant.Services
                     $"{index + 1}. {GetFriendlyNameFromId(match.Value, mappingCache)} ({match.Value})")
                     .ToList();
 
-                var message = $"ÕÒµ½¶à¸öÆ¥ÅäÏî£¬ÇëÃ÷È·Ö¸¶¨:\n/ Multiple matches found, please specify:\n" +
+                var message = $"æ‰¾åˆ°å¤šä¸ªåŒ¹é…é¡¹ï¼Œè¯·æ˜ç¡®æŒ‡å®š:\n/ Multiple matches found, please specify:\n" +
                              string.Join("\n", matchList);
 
                 if (matches.Count > 10)
                 {
-                    message += $"\n... »¹ÓĞ {matches.Count - 10} ¸öÆ¥ÅäÏî / ... and {matches.Count - 10} more matches";
+                    message += $"\n... è¿˜æœ‰ {matches.Count - 10} ä¸ªåŒ¹é…é¡¹ / ... and {matches.Count - 10} more matches";
                 }
 
                 return $"MULTIPLE:{message}";
@@ -472,7 +472,7 @@ namespace HomeAssistant.Services
             {
                 Logger.LogInformation("Loading entity mappings from Home Assistant API...");
 
-                var states = await HttpClient.GetFromJsonAsync<HomeAssistantState[]>($"/states");
+                var states = await HttpClient.GetFromJsonAsync<HomeAssistantState[]>($"states");
 
                 var mappingCache = new EntityMappingCache();
 
@@ -518,11 +518,11 @@ namespace HomeAssistant.Services
             var mappingCache = await LoadEntityMappingAsync();
             if (mappingCache != null)
             {
-                return $"ÒÑÖØĞÂ¼ÓÔØ {mappingCache.EntityCount} ¸öÉè±¸Ó³Éä / Reloaded {mappingCache.EntityCount} entity mappings successfully";
+                return $"å·²é‡æ–°åŠ è½½ {mappingCache.EntityCount} ä¸ªè®¾å¤‡æ˜ å°„ / Reloaded {mappingCache.EntityCount} entity mappings successfully";
             }
             else
             {
-                return "ÖØĞÂ¼ÓÔØÉè±¸Ó³ÉäÊ§°Ü / Failed to reload entity mappings";
+                return "é‡æ–°åŠ è½½è®¾å¤‡æ˜ å°„å¤±è´¥ / Failed to reload entity mappings";
             }
         }
 
@@ -530,21 +530,21 @@ namespace HomeAssistant.Services
         {
             try
             {
-                var status = await HttpClient.GetFromJsonAsync<HomeAssistantStatus>($"/");
+                var status = await HttpClient.GetFromJsonAsync<HomeAssistantStatus>("");
 
                 if (status != null)
                 {
-                    return $"Home Assistant ×´Ì¬ / Status: {status.Message}";
+                    return $"Home Assistant çŠ¶æ€ / Status: {status.Message}";
                 }
                 else
                 {
-                    return "ÎŞ·¨»ñÈ¡ Home Assistant ×´Ì¬ / Unable to get Home Assistant status";
+                    return "æ— æ³•è·å– Home Assistant çŠ¶æ€ / Unable to get Home Assistant status";
                 }
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error getting Home Assistant status");
-                return $"»ñÈ¡×´Ì¬Ê±³ö´í / Error getting status: {ex.Message}";
+                return $"è·å–çŠ¶æ€æ—¶å‡ºé”™ / Error getting status: {ex.Message}";
             }
         }
 
@@ -552,7 +552,7 @@ namespace HomeAssistant.Services
         {
             try
             {
-                var states = await HttpClient.GetFromJsonAsync<HomeAssistantState[]>($"/states");
+                var states = await HttpClient.GetFromJsonAsync<HomeAssistantState[]>("states");
 
                 var entities = new List<string>();
 
@@ -572,16 +572,16 @@ namespace HomeAssistant.Services
 
                 if (entities.Count == 0)
                 {
-                    return $"Î´ÕÒµ½Óò '{domain}' µÄÉè±¸ / No entities found for domain '{domain}'";
+                    return $"æœªæ‰¾åˆ°åŸŸ '{domain}' çš„è®¾å¤‡ / No entities found for domain '{domain}'";
                 }
 
-                return $"{domain.ToUpperInvariant()} Éè±¸ / entities:\n" + string.Join("\n", entities.Take(20)) +
-                       (entities.Count > 20 ? $"\n... »¹ÓĞ {entities.Count - 20} ¸ö / and {entities.Count - 20} more" : "");
+                return $"{domain.ToUpperInvariant()} è®¾å¤‡ / entities:\n" + string.Join("\n", entities.Take(20)) +
+                       (entities.Count > 20 ? $"\n... è¿˜æœ‰ {entities.Count - 20} ä¸ª / and {entities.Count - 20} more" : "");
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error listing entities for domain {Domain}", domain);
-                return $"ÁĞ±íÉè±¸Ê±³ö´í / Error listing entities: {ex.Message}";
+                return $"åˆ—è¡¨è®¾å¤‡æ—¶å‡ºé”™ / Error listing entities: {ex.Message}";
             }
         }
 
@@ -589,7 +589,7 @@ namespace HomeAssistant.Services
         {
             try
             {
-                var state = await HttpClient.GetFromJsonAsync<HomeAssistantState>($"/states/{entityId}");
+                var state = await HttpClient.GetFromJsonAsync<HomeAssistantState>($"states/{entityId}");
 
                 if (state != null && state.State != null)
                 {
@@ -607,14 +607,14 @@ namespace HomeAssistant.Services
                                 var temp = state.Attributes.CurrentTemperature?.ToString();
                                 var targetTemp = state.Attributes.Temperature?.ToString();
                                 var mode = state.Attributes.HvacMode;
-                                additionalInfo = $" (µ±Ç° / Current: {temp}¡ã, Ä¿±ê / Target: {targetTemp}¡ã, Ä£Ê½ / Mode: {mode})";
+                                additionalInfo = $" (å½“å‰ / Current: {temp}Â°, ç›®æ ‡ / Target: {targetTemp}Â°, æ¨¡å¼ / Mode: {mode})";
                                 break;
 
                             case "light":
                                 var brightness = state.Attributes.Brightness?.ToString();
                                 if (!string.IsNullOrEmpty(brightness))
                                 {
-                                    additionalInfo = $" (ÁÁ¶È / Brightness: {brightness})";
+                                    additionalInfo = $" (äº®åº¦ / Brightness: {brightness})";
                                 }
                                 break;
                         }
@@ -623,16 +623,16 @@ namespace HomeAssistant.Services
                     return $"{friendlyName}: {state.State}{unit}{additionalInfo}";
                 }
 
-                return $"Éè±¸ {entityId} Î´ÕÒµ½ / Entity {entityId} not found";
+                return $"è®¾å¤‡ {entityId} æœªæ‰¾åˆ° / Entity {entityId} not found";
             }
             catch (HttpRequestException ex) when (ex.Message.Contains("404"))
             {
-                return $"Éè±¸ {entityId} Î´ÕÒµ½ / Entity {entityId} not found";
+                return $"è®¾å¤‡ {entityId} æœªæ‰¾åˆ° / Entity {entityId} not found";
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error getting entity state for {EntityId}", entityId);
-                return $"»ñÈ¡Éè±¸ {entityId} ×´Ì¬Ê±³ö´í / Error getting state for {entityId}: {ex.Message}";
+                return $"è·å–è®¾å¤‡ {entityId} çŠ¶æ€æ—¶å‡ºé”™ / Error getting state for {entityId}: {ex.Message}";
             }
         }
 
@@ -678,7 +678,7 @@ namespace HomeAssistant.Services
                 var json = JsonSerializer.Serialize(serviceData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await HttpClient.PostAsync($"/services/{domain}/{service}", content);
+                var response = await HttpClient.PostAsync($"services/{domain}/{service}", content);
                 response.EnsureSuccessStatusCode();
 
                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -686,18 +686,18 @@ namespace HomeAssistant.Services
 
                 if (string.IsNullOrEmpty(entityId))
                 {
-                    return $"·şÎñ {domain}.{service} µ÷ÓÃ³É¹¦ / Service {domain}.{service} called successfully";
+                    return $"æœåŠ¡ {domain}.{service} è°ƒç”¨æˆåŠŸ / Service {domain}.{service} called successfully";
                 }
                 else
                 {
                     var friendlyName = GetFriendlyNameFromId(entityId);
-                    return $"ÒÑÎª {friendlyName} µ÷ÓÃ·şÎñ {domain}.{service} / Service {domain}.{service} called for {friendlyName}";
+                    return $"å·²ä¸º {friendlyName} è°ƒç”¨æœåŠ¡ {domain}.{service} / Service {domain}.{service} called for {friendlyName}";
                 }
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error calling service {Domain}.{Service} for entity {EntityId}", domain, service, entityId);
-                return $"µ÷ÓÃ·şÎñ {domain}.{service} Ê±³ö´í / Error calling service {domain}.{service}: {ex.Message}";
+                return $"è°ƒç”¨æœåŠ¡ {domain}.{service} æ—¶å‡ºé”™ / Error calling service {domain}.{service}: {ex.Message}";
             }
         }
 

@@ -89,7 +89,7 @@ namespace HomeAssistant.Models
         public int MaxTemp { get; set; }
         
         [JsonPropertyName("target_temp_step")]
-        public int TargetTempStep { get; set; }
+        public float TargetTempStep { get; set; }
         
         [JsonPropertyName("fan_modes")]
         public string[] FanModes { get; set; }
@@ -347,7 +347,7 @@ namespace HomeAssistant.Models
         public int Percentage { get; set; }
         
         [JsonPropertyName("percentage_step")]
-        public int PercentageStep { get; set; }
+        public float PercentageStep { get; set; }
         
         [JsonPropertyName("active")]
         public bool Active { get; set; }
