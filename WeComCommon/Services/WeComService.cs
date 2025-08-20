@@ -74,7 +74,11 @@ namespace WeComCommon.Services
                 return;
             }
             HttpClient client = new HttpClient();
-            var response = await client.PostAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", JsonContent.Create(regularMessage, regularMessage.GetType()));
+            var response = await client.PostAsJsonAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", regularMessage, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+
+            });
             response.EnsureSuccessStatusCode();
             Logger.LogInformation($"WECOMSERVICE: SEND_MESSAGE {await response.Content.ReadAsStringAsync()}");
         }
