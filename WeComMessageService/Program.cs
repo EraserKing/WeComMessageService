@@ -4,6 +4,9 @@ using DebtReminder.Models.Configurations;
 using DebtReminder.Processors;
 using DebtReminder.Services;
 using Eastmoney.Services;
+using HomeAssistant.Models.Configurations;
+using HomeAssistant.Processors;
+using HomeAssistant.Services;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.EntityFrameworkCore;
 using Mikan.Controllers;
@@ -77,6 +80,7 @@ builder.Services.Configure<DebtServiceConfiguration>(builder.Configuration.GetSe
 builder.Services.Configure<QinglongServiceConfiguration>(builder.Configuration.GetSection("QinglongService"));
 builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetSection("MikanService"));
 builder.Services.Configure<QbittorrentServiceConfiguration>(builder.Configuration.GetSection("QbittorrentService"));
+builder.Services.Configure<HomeAssistantConfiguration>(builder.Configuration.GetSection("HomeAssistant"));
 
 builder.Services.AddSingleton<WeComService>();
 builder.Services.AddSingleton<ValueHolder<QbittorrentServiceConfigurationSite>>();
@@ -89,6 +93,7 @@ builder.Services.AddScoped<EastmoneyService>();
 builder.Services.AddScoped<QinglongService>();
 builder.Services.AddScoped<MikanService>();
 builder.Services.AddScoped<QbittorrentService>();
+builder.Services.AddScoped<HomeAssistantService>();
 
 builder.Services.AddScoped<IProcessor, DebtMessageProcessor>();
 builder.Services.AddScoped<DebtMessageProcessor>();
@@ -101,6 +106,9 @@ builder.Services.AddScoped<MikanProcessor>();
 
 builder.Services.AddScoped<IProcessor, QbittorrentProcessor>();
 builder.Services.AddScoped<QbittorrentProcessor>();
+
+builder.Services.AddScoped<IProcessor, HomeAssistantProcessor>();
+builder.Services.AddScoped<HomeAssistantProcessor>();
 
 builder.Services.AddHostedService<NotificationService>();
 builder.Services.AddSingleton<MikanBackgroundService>();
