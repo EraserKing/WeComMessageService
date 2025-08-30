@@ -20,7 +20,7 @@ namespace DebtReminder.Services
 
         public CosmosDbService(ILogger<CosmosDbService<T, V>> logger, T dbContext)
         {
-            logger.LogInformation($"COSMOS: Initializing context {typeof(T)} of {typeof(V)}...");
+            logger.LogInformation("COSMOS: Initializing context {TypeT} of {TypeV}...", typeof(T), typeof(V));
 
             Logger = logger;
             DbContext = dbContext;
@@ -65,7 +65,7 @@ namespace DebtReminder.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError("Unable to delete item", ex);
+                Logger.LogError(ex, "Unable to delete item");
                 return CosmosDbActionResult.Failed;
             }
         }
@@ -81,7 +81,7 @@ namespace DebtReminder.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError("Unable to query item(s)", ex);
+                Logger.LogError(ex, "Unable to query item(s)");
                 return (CosmosDbActionResult.Failed, null);
             }
         }

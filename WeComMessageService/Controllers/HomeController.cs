@@ -43,7 +43,7 @@ namespace WeComMessageService.Controllers
                     WXBizMsgCrypts = new Dictionary<string, WXBizMsgCrypt>();
                     foreach (var appConfiguration in WeComConfiguration.AppConfigurations)
                     {
-                        Logger.LogInformation($"HOMESERVICE: Create crypts for {appConfiguration.AppId}...");
+                        Logger.LogInformation("HOMESERVICE: Create crypts for {AppId}...", appConfiguration.AppId);
                         WXBizMsgCrypts[appConfiguration.AppId] = new WXBizMsgCrypt(appConfiguration.Message.Token, appConfiguration.Message.EncodingAESKey, appConfiguration.CorpId);
                     }
                 }
@@ -54,14 +54,14 @@ namespace WeComMessageService.Controllers
         {
             httpRequest.Headers.TryGetValue("X-App-Id", out var appIds);
             string appId = appIds.Count > 0 ? string.Join(string.Empty, appIds): string.Empty;
-            Logger.LogInformation($"HOMESERVICE: Get request to {appId}");
+            Logger.LogInformation("HOMESERVICE: Get request to {AppId}", appId);
             return WXBizMsgCrypts.First(x => string.Equals(appId, x.Key, StringComparison.OrdinalIgnoreCase)).Value;
         }
 
         [HttpGet("/")]
         public ActionResult<string> VerifyUrl(string msg_signature, string timestamp, string nonce, string echostr)
         {
-            Logger.LogInformation($"HOME: VERIFY_URL, MSG_SIGNATURE: {msg_signature} TIMESTAMP: {timestamp} NONCE: {nonce}");
+            Logger.LogInformation("HOME: VERIFY_URL, MSG_SIGNATURE: {MsgSignature} TIMESTAMP: {Timestamp} NONCE: {Nonce}", msg_signature, timestamp, nonce);
 
             string sEchoStr = "";
 
@@ -70,25 +70,24 @@ namespace WeComMessageService.Controllers
 
             if (verifyRet != 0)
             {
-                string failMessage = $"HOME: VERIFY_URL ERR: VERIFY_FAIL: {verifyRet}";
-                Logger.LogError(failMessage);
-                return Ok(failMessage);
+                Logger.LogError("HOME: VERIFY_URL ERR: VERIFY_FAIL: {VerifyRet}", verifyRet);
+                return Ok("HOME: VERIFY_URL ERR: VERIFY_FAIL: " + verifyRet);
             }
 
-            Logger.LogInformation($"HOME: VERIFY_URL, RESPONSE: {sEchoStr}");
+            Logger.LogInformation("HOME: VERIFY_URL, RESPONSE: {Response}", sEchoStr);
             return Ok(sEchoStr);
         }
 
         [HttpPost("/")]
         public async Task<ActionResult<string>> ReceiveMessageAsync([FromQuery] string msg_signature, [FromQuery] string timestamp, [FromQuery] string nonce)
         {
-            Logger.LogInformation($"HOME: RECEIVE_MESSAGE, MSG_SIGNATURE: {msg_signature} TIMESTAMP: {timestamp} NONCE: {nonce}");
+            Logger.LogInformation("HOME: RECEIVE_MESSAGE, MSG_SIGNATURE: {MsgSignature} TIMESTAMP: {Timestamp} NONCE: {Nonce}", msg_signature, timestamp, nonce);
 
             // Check for duplicate message
             string messageKey = $"{msg_signature}:{timestamp}:{nonce}";
             if (MemoryCache.TryGetValue(messageKey, out _))
             {
-                Logger.LogInformation($"HOME: RECEIVE_MESSAGE, DUPLICATE DETECTED: {messageKey}");
+                Logger.LogInformation("HOME: RECEIVE_MESSAGE, DUPLICATE DETECTED: {MessageKey}", messageKey);
                 return Ok("success"); // Return success without processing to avoid duplicate processing
             }
 
@@ -104,11 +103,10 @@ namespace WeComMessageService.Controllers
             var decryptMsgRet = wxCrypt.DecryptMsg(msg_signature, timestamp, nonce, receivedBodyString, ref decryptedBodyString);
             if (decryptMsgRet != 0)
             {
-                string decryptMsgFailString = $"HOME: RECEIVE_MESSAGE ERR: DECRYPT_FAIL: {decryptMsgRet}";
-                Logger.LogError(decryptMsgFailString);
-                return Ok(decryptMsgFailString);
+                Logger.LogError("HOME: RECEIVE_MESSAGE ERR: DECRYPT_FAIL: {DecryptMsgRet}", decryptMsgRet);
+                return Ok("HOME: RECEIVE_MESSAGE ERR: DECRYPT_FAIL: " + decryptMsgRet);
             }
-            Logger.LogInformation($"HOME: RECEIVE_MESSAGE, DECRYPTED:\n{decryptedBodyString}");
+            Logger.LogInformation("HOME: RECEIVE_MESSAGE, DECRYPTED:\n{DecryptedBody}", decryptedBodyString);
 
             // Deserialize body
             WeComReceiveMessage receivedMessage = XmlUtilities.Deserialize<WeComReceiveMessage>(decryptedBodyString);
@@ -128,7 +126,7 @@ namespace WeComMessageService.Controllers
 
             // Serialize response
             string replyBodyString = XmlUtilities.Serialize(replyMessage);
-            Logger.LogInformation($"HOME: RECEIVE_MESSAGE, REPLY:\n{replyBodyString}");
+            Logger.LogInformation("HOME: RECEIVE_MESSAGE, REPLY:\n{ReplyBody}", replyBodyString);
 
             // Encrypt response
             string encryptedBodyString = "";
@@ -136,9 +134,8 @@ namespace WeComMessageService.Controllers
 
             if (encryptMsgRet != 0)
             {
-                string encryptFailMessage = $"HOME: RECEIVE_MESSAGE ERR: ENCRYPT_FAIL: {encryptMsgRet}";
-                Logger.LogError(encryptFailMessage);
-                return Ok(encryptFailMessage);
+                Logger.LogError("HOME: RECEIVE_MESSAGE ERR: ENCRYPT_FAIL: {EncryptMsgRet}", encryptMsgRet);
+                return Ok("HOME: RECEIVE_MESSAGE ERR: ENCRYPT_FAIL: " + encryptMsgRet);
             }
 
             // Return response
@@ -170,7 +167,7 @@ namespace WeComMessageService.Controllers
 
             // Serialize response
             string replyBodyString = XmlUtilities.Serialize(replyMessage);
-            Logger.LogInformation($"HOME: RECEIVE_MESSAGE, REPLY:\n{replyBodyString}");
+            Logger.LogInformation("HOME: RECEIVE_MESSAGE, REPLY:\n{ReplyBody}", replyBodyString);
             return Ok(replyBodyString);
         }
 #endif

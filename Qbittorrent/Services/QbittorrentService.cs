@@ -91,12 +91,12 @@ namespace Qbittorrent.Services
 
                 var addTorrentResponse = await Client.PostAsync(finalUrl, multipartFormContent);
                 addTorrentResponse.EnsureSuccessStatusCode();
-                Logger.LogInformation($"QB: Added torrent of with file name {fileName} by {finalUrl}");
+                Logger.LogInformation("QB: Added torrent of with file name {FileName} by {FinalUrl}", fileName, finalUrl);
                 return "Done";
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to add torrent of with file name {fileName} due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to add torrent of with file name {FileName}", fileName);
                 throw;
             }
         }
@@ -115,12 +115,12 @@ namespace Qbittorrent.Services
 
                 var addTorrentResponse = await Client.PostAsync(finalUrl, addTorrentContent);
                 addTorrentResponse.EnsureSuccessStatusCode();
-                Logger.LogInformation($"QB: Added torrent of with url {url} by {finalUrl}");
+                Logger.LogInformation("QB: Added torrent of with url {Url} by {FinalUrl}", url, finalUrl);
                 return "Done";
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to add torrent of with url {url} due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to add torrent of with url {Url}", url);
                 throw;
             }
         }
@@ -146,7 +146,7 @@ namespace Qbittorrent.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to delete items due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to delete items");
                 throw;
             }
         }
@@ -172,7 +172,7 @@ namespace Qbittorrent.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to pause items due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to pause items");
                 throw;
             }
         }
@@ -198,7 +198,7 @@ namespace Qbittorrent.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to resume items due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to resume items");
                 throw;
             }
         }
@@ -245,7 +245,7 @@ namespace Qbittorrent.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError($"QB: Unable to list items due to {ex.Message}");
+                Logger.LogError(ex, "QB: Unable to list items");
                 throw;
             }
         }

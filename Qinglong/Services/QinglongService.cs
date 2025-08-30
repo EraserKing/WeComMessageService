@@ -59,7 +59,7 @@ namespace Qinglong.Services
             }
             else if (authResponse.code == 200)
             {
-                Logger.LogInformation($"QINGLONG: Token obtained, expiration is {authResponse.data.expiration}");
+                Logger.LogInformation("QINGLONG: Token obtained, expiration is {Expiration}", authResponse.data.expiration);
                 HttpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(authResponse.data.token_type, authResponse.data.token);
                 TokenExpiration = authResponse.data.expiration;
             }
@@ -70,7 +70,7 @@ namespace Qinglong.Services
             }
             else
             {
-                Logger.LogError($"QINGLONG: Log in response code {authResponse.code} message {authResponse.message}");
+                Logger.LogError("QINGLONG: Log in response code {Code} message {Message}", authResponse.code, authResponse.message);
                 throw new LoginException($"Log in response code {authResponse.code} message {authResponse.message}");
             }
         }
@@ -87,7 +87,7 @@ namespace Qinglong.Services
             QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (findCronResponse == null || findCronResponse.code != 200)
             {
-                Logger.LogError($"QINGLONG: Find cron task fail with code {findCronResponse?.code}");
+                Logger.LogError("QINGLONG: Find cron task fail with code {Code}", findCronResponse?.code);
                 throw new ExecutionException($"Find cron task fail with code {findCronResponse?.code}");
             }
 
@@ -98,16 +98,16 @@ namespace Qinglong.Services
                 Logger.LogError("QINGLONG: No cron task found");
                 throw new ExecutionException("No cron task found");
             }
-            Logger.LogInformation($"QINGLONG: Find cron task id {id}");
+            Logger.LogInformation("QINGLONG: Find cron task id {Id}", id);
 
             var runConResponseMessage = await HttpClient.PutAsJsonAsync("/open/crons/run", new int[] { id.Value });
             QinglongCronModel? runCronResponse = await runConResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (runCronResponse == null || runCronResponse.code != 200)
             {
-                Logger.LogError($"QINGLONG: Run cron task fail with code {runCronResponse?.code}");
+                Logger.LogError("QINGLONG: Run cron task fail with code {Code}", runCronResponse?.code);
                 throw new ExecutionException($"Run cron task fail with code {runCronResponse?.code}");
             }
-            Logger.LogInformation($"QINGLONG: Execute cron task id {id} done");
+            Logger.LogInformation("QINGLONG: Execute cron task id {Id} done", id);
         }
 
         public async Task RerunTodayTasks()
@@ -118,15 +118,15 @@ namespace Qinglong.Services
             QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (findCronResponse == null || findCronResponse.code != 200)
             {
-                Logger.LogError($"QINGLONG: Find cron task fail with code {findCronResponse?.code}");
+                Logger.LogError("QINGLONG: Find cron task fail with code {Code}", findCronResponse?.code);
                 throw new ExecutionException($"Find cron task fail with code {findCronResponse?.code}");
             }
 
             var cstNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.Now, "Asia/Shanghai");
-            Logger.LogInformation($"China Standard Time Now is {cstNow}");
+            Logger.LogInformation("China Standard Time Now is {CstNow}", cstNow);
 
             var cstTodayStart = new DateTimeOffset(cstNow.Year, cstNow.Month, cstNow.Day, 0, 0, 0, new TimeSpan(8, 0, 0));
-            Logger.LogInformation($"China Standard Time Today Start is {cstTodayStart}");
+            Logger.LogInformation("China Standard Time Today Start is {CstTodayStart}", cstTodayStart);
 
             var ids = findCronResponse?.data?.data?.Where(x => x.last_execution_time > cstTodayStart.ToUnixTimeSeconds() && x.last_execution_time < cstNow.ToUnixTimeSeconds()).Select(x => x.id).ToArray();
             if (ids == null)
@@ -134,16 +134,16 @@ namespace Qinglong.Services
                 Logger.LogError("QINGLONG: No cron task found");
                 throw new ExecutionException("No cron task found");
             }
-            Logger.LogInformation($"QINGLONG: Find cron tasks with ids {string.Join(",", ids)}");
+            Logger.LogInformation("QINGLONG: Find cron tasks with ids {Ids}", string.Join(",", ids));
 
             var runConResponseMessage = await HttpClient.PutAsJsonAsync("/open/crons/run", ids);
             QinglongCronModel? runCronResponse = await runConResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (runCronResponse == null || runCronResponse.code != 200)
             {
-                Logger.LogError($"QINGLONG: Run cron task fail with code {runCronResponse?.code}");
+                Logger.LogError("QINGLONG: Run cron task fail with code {Code}", runCronResponse?.code);
                 throw new ExecutionException($"Run cron task fail with code {runCronResponse?.code}");
             }
-            Logger.LogInformation($"QINGLONG: Execute cron task id {string.Join(", ", ids)} done");
+            Logger.LogInformation("QINGLONG: Execute cron task id {Ids} done", string.Join(", ", ids));
         }
     }
 }

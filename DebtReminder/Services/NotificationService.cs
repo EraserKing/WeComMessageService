@@ -58,7 +58,7 @@ namespace DebtReminder.Services
                 }
                 Logger.LogInformation("NOTIFICATION: Finish release routine");
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
-            Logger.LogInformation($"NOTIFICATION: New release timer created at UTC {debtServiceConfiguration.NewReleaseCheckHour}:{debtServiceConfiguration.NewReleaseCheckMinute}");
+            Logger.LogInformation("NOTIFICATION: New release timer created at UTC {Hour}:{Minute}", debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute);
         }
 
         public void CreateListingTimer()
@@ -87,7 +87,7 @@ namespace DebtReminder.Services
                 }
                 Logger.LogInformation("NOTIFICATION: Finish listing routine");
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
-            Logger.LogInformation($"NOTIFICATION: New listing timer created at UTC {debtServiceConfiguration.NewListingCheckHour}:{debtServiceConfiguration.NewListingCheckMinute}");
+            Logger.LogInformation("NOTIFICATION: New listing timer created at UTC {Hour}:{Minute}", debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute);
         }
 
         public async Task<IList<WeComRegularMessage>> CheckNewListingsAsync()
@@ -105,7 +105,7 @@ namespace DebtReminder.Services
             }
 
             var newDebtCodes = newListings.Select(x => x.SECURITY_CODE).ToArray();
-            Logger.LogInformation($"NOTIFICATION: New codes on listing today: {string.Join(" ", newDebtCodes)}");
+            Logger.LogInformation("NOTIFICATION: New codes on listing today: {NewDebtCodes}", string.Join(" ", newDebtCodes));
             (var operationResult, var subscriptionResults) = await cosmosDbService.QueryItemsAsync(x => x.ReminderType == ReminderType.LISTING && Array.Exists(newDebtCodes, debtCode => debtCode == x.DebtCode));
 
             if (operationResult == CosmosDbActionResult.Failed || subscriptionResults == null)
@@ -121,14 +121,14 @@ namespace DebtReminder.Services
                 var newListing = newListings.FirstOrDefault(x => x.SECURITY_CODE == subscriptionsByDebtCode.Key);
                 if (newListing == null)
                 {
-                    Logger.LogError($"NOTIFICATION: Debt {subscriptionsByDebtCode.Key} is not listed today while it exists in data");
+                    Logger.LogError("NOTIFICATION: Debt {DebtCode} is not listed today while it exists in data", subscriptionsByDebtCode.Key);
                     continue;
                 }
 
                 string userIds = string.Join("|", subscriptionsByDebtCode.Select(x => x.UserName));
                 if (string.IsNullOrWhiteSpace(userIds))
                 {
-                    Logger.LogError($"NOTIFICATION: No users subscribed {subscriptionsByDebtCode.FirstOrDefault()?.DebtCode} / {subscriptionsByDebtCode.FirstOrDefault()?.DebtName} ");
+                    Logger.LogError("NOTIFICATION: No users subscribed {DebtCode} / {DebtName}", subscriptionsByDebtCode.FirstOrDefault()?.DebtCode, subscriptionsByDebtCode.FirstOrDefault()?.DebtName);
                     continue;
                 }
 
@@ -140,7 +140,7 @@ namespace DebtReminder.Services
                     "https://data.eastmoney.com/kzz/default.html",
                     "查看列表"
                     ));
-                Logger.LogInformation($"NOTIFICATION: Collect {newListing.SECURITY_CODE} / {newListing.SECURITY_NAME_ABBR} to {userIds}");
+                Logger.LogInformation("NOTIFICATION: Collect {SecurityCode} / {SecurityName} to {UserIds}", newListing.SECURITY_CODE, newListing.SECURITY_NAME_ABBR, userIds);
             }
             return messages;
         }
@@ -174,7 +174,7 @@ namespace DebtReminder.Services
 
             string cardContents = string.Join($"{Environment.NewLine}{Environment.NewLine}", newReleases.Select(x => x.MakeCardContent()));
 
-            Logger.LogInformation($"NOTIFICATION: Collect {newReleases.Length} release to {userIds}");
+            Logger.LogInformation("NOTIFICATION: Collect {ReleaseCount} release to {UserIds}", newReleases.Length, userIds);
 
             return WeComRegularMessage.CreateTextCardMessage(
                     debtServiceConfiguration.SendByAgentId,

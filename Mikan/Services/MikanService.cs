@@ -56,19 +56,19 @@ namespace Mikan.Services
                 {
                     HttpClient httpClient = new HttpClient();
                     await QbittorrentService.AddItem(foundItem.Url);
-                    Logger.LogInformation($"MIKAN: Added torrent {foundItem.Title}");
+                    Logger.LogInformation("MIKAN: Added torrent {Title}", foundItem.Title);
                     return $"Added torrent of {foundItem.Title}";
 
                 }
                 else
                 {
-                    Logger.LogInformation($"MIKAN: No item match key {key}");
+                    Logger.LogInformation("MIKAN: No item match key {Key}", key);
                     throw new ExecutionException($"Unable to find the item by key {key}");
                 }
             }
             else
             {
-                Logger.LogError($"MIKAN: Invalid key {key}");
+                Logger.LogError("MIKAN: Invalid key {Key}", key);
                 throw new ExecutionException("Unable to recognize the key");
             }
         }
@@ -88,12 +88,12 @@ namespace Mikan.Services
                 var episodeNameMatch = new Regex(@"<p class=\""episode-title\"">(.+)</p>").Match(episodePageString);
                 var episodeName = episodeNameMatch.Success ? WebUtility.HtmlDecode(episodeNameMatch.Groups[1].Value) : "Unknown Episode";
 
-                Logger.LogInformation($"MIKAN: Added torrent url {torrentFinalUrl} for {episodeName}");
+                Logger.LogInformation("MIKAN: Added torrent url {TorrentUrl} for {EpisodeName}", torrentFinalUrl, episodeName);
                 return $"Added torrent for {torrentFinalUrl} for {episodeName}";
             }
             else
             {
-                Logger.LogInformation($"MIKAN: No episode found for this episode ID {episodeId}");
+                Logger.LogInformation("MIKAN: No episode found for this episode ID {EpisodeId}", episodeId);
                 return $"No episode found for this episode ID {episodeId}";
             }
         }

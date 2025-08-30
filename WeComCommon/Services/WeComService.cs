@@ -36,7 +36,7 @@ namespace WeComCommon.Services
                     foreach (var processor in serviceScope.ServiceProvider.GetServices<IProcessor>())
                     {
                         ulong processorAgentId = processor.GetProcessorAgentId();
-                        Logger.LogInformation($"WECOMSERVICE: Initialize processor {processorAgentId}");
+                        Logger.LogInformation("WECOMSERVICE: Initialize processor {ProcessorAgentId}", processorAgentId);
                         Processors[processorAgentId] = processor.GetType();
                     }
                 }
@@ -70,7 +70,7 @@ namespace WeComCommon.Services
         {
             if (regularMessage == null)
             {
-                Logger.LogInformation($"WECOMSERVICE: SEND_MESSAGE skipped - source is null");
+                Logger.LogInformation("WECOMSERVICE: SEND_MESSAGE skipped - source is null");
                 return;
             }
             HttpClient client = new HttpClient();
@@ -80,7 +80,7 @@ namespace WeComCommon.Services
 
             });
             response.EnsureSuccessStatusCode();
-            Logger.LogInformation($"WECOMSERVICE: SEND_MESSAGE {await response.Content.ReadAsStringAsync()}");
+            Logger.LogInformation("WECOMSERVICE: SEND_MESSAGE {ResponseContent}", await response.Content.ReadAsStringAsync());
         }
 
         public async Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage)
@@ -99,7 +99,7 @@ namespace WeComCommon.Services
             }
             else
             {
-                Logger.LogError($"WECOMSERVICE: No processor found for {receiveMessage.AgentID}");
+                Logger.LogError("WECOMSERVICE: No processor found for {AgentID}", receiveMessage.AgentID);
                 throw new ArgumentNullException(nameof(receiveMessage.AgentID));
             }
         }

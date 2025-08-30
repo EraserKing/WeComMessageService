@@ -37,7 +37,7 @@ namespace Eastmoney.Services
                             var response = await httpClient.GetAsync("https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUBLIC_START_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_BOND_CB_LIST&columns=CONVERT_STOCK_CODE,SECURITY_CODE,SECURITY_NAME_ABBR,LISTING_DATE,PUBLIC_START_DATE&quoteColumns=f2~01~CONVERT_STOCK_CODE~CONVERT_STOCK_PRICE,f235~10~SECURITY_CODE~TRANSFER_PRICE,f236~10~SECURITY_CODE~TRANSFER_VALUE,f2~10~SECURITY_CODE~CURRENT_BOND_PRICE,f237~10~SECURITY_CODE~TRANSFER_PREMIUM_RATIO");
                             Logger.LogInformation("Response get from server, will deserialize");
                             var content = await response.Content.ReadAsStringAsync();
-                            Logger.LogInformation(content);
+                            Logger.LogInformation("{Content}", content);
                             if (content != null)
                             {
                                 Resource = JsonSerializer.Deserialize<EastmoneyModel>(content);
@@ -47,9 +47,7 @@ namespace Eastmoney.Services
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogInformation(ex.Message);
-                            Logger.LogInformation(ex.StackTrace);
-                            Logger.LogError("Unable to connect to EastMoney", ex);
+                            Logger.LogError(ex, "Unable to connect to EastMoney");
                             Thread.Sleep(5000);
                         }
                     }
@@ -76,14 +74,14 @@ namespace Eastmoney.Services
 
         public async Task<EastmoneyData[]> GetNewReleasesAsync(DateOnly? date = null)
         {
-            Logger.LogInformation($"Get new releases of {date.ToString() ?? "TODAY"}");
+            Logger.LogInformation("Get new releases of {Date}", date?.ToString() ?? "TODAY");
             DateOnly today = date ?? GetChinaDateToday();
             return (await GetFullResource())?.result.data.Where(e => !string.IsNullOrWhiteSpace(e.PUBLIC_START_DATE) && DateOnly.FromDateTime(DateTime.Parse(e.PUBLIC_START_DATE)) == today).ToArray();
         }
 
         public async Task<EastmoneyData[]> GetNewListingAsync(DateOnly? date = null)
         {
-            Logger.LogInformation($"Get new listings of {date.ToString() ?? "TODAY"}");
+            Logger.LogInformation("Get new listings of {Date}", date?.ToString() ?? "TODAY");
             DateOnly today = date ?? GetChinaDateToday();
             return (await GetFullResource())?.result.data.Where(e => !string.IsNullOrWhiteSpace(e.LISTING_DATE) && DateOnly.FromDateTime(DateTime.Parse(e.LISTING_DATE)) == today).ToArray();
         }

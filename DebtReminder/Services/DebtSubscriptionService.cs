@@ -117,7 +117,7 @@ namespace DebtReminder.Services
                             break;
 
                         default:
-                            Logger.LogError($"SUBSCRIPTION: UNKNOWN TYPE {reminderType} IN QUERY");
+                            Logger.LogError("SUBSCRIPTION: UNKNOWN TYPE {ReminderType} IN QUERY", reminderType);
                             resultString = "未知订阅类型";
                             break;
                     }
@@ -133,7 +133,7 @@ namespace DebtReminder.Services
                     break;
             }
 
-            Logger.LogDebug($"SUBSCRIPTION: QUERY {resultString}");
+            Logger.LogDebug("SUBSCRIPTION: QUERY {ResultString}", resultString);
             return resultString;
         }
 
@@ -176,7 +176,7 @@ namespace DebtReminder.Services
 
                 default:
                     messageContent = "未知查询类型";
-                    Logger.LogError($"SUBSCRIPTION: QUERY NEW ENTRIES {reminderType}");
+                    Logger.LogError("SUBSCRIPTION: QUERY NEW ENTRIES {ReminderType}", reminderType);
                     break;
             }
             return messageContent;
