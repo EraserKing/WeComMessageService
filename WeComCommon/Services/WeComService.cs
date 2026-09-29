@@ -15,7 +15,14 @@ namespace WeComCommon.Services
         private readonly IServiceProvider ServiceProvider;
         private readonly WeComServicesConfiguration WeComConfiguration;
 
-        private Dictionary<ulong, WeComAccessToken> AccessTokenByAgent = new Dictionary<ulong, WeComAccessToken>();
+        private readonly HttpClient HttpClient = new();
+        private readonly SemaphoreSlim TokenLock = new(1, 1);
+        private readonly Dictionary<ulong, WeComAccessToken> AccessTokenByAgent = new();
+        private static readonly AsyncLocal<AsyncServiceScope?> PendingWorkScope = new();
+        private static readonly JsonSerializerOptions MessageJsonOptions = new()
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
 
         private static Dictionary<ulong, Type> Processors;
         private static object ProcessorInitializeLock = new object();
@@ -31,13 +38,17 @@ namespace WeComCommon.Services
                 Logger.LogInformation("WECOMSERVICE: Initialize processors...");
                 lock (ProcessorInitializeLock)
                 {
-                    Processors = new Dictionary<ulong, Type>();
-                    var serviceScope = serviceProvider.CreateScope();
-                    foreach (var processor in serviceScope.ServiceProvider.GetServices<IProcessor>())
+                    if (Processors == null)
                     {
-                        ulong processorAgentId = processor.GetProcessorAgentId();
-                        Logger.LogInformation("WECOMSERVICE: Initialize processor {ProcessorAgentId}", processorAgentId);
-                        Processors[processorAgentId] = processor.GetType();
+                        var processors = new Dictionary<ulong, Type>();
+                        using var serviceScope = serviceProvider.CreateScope();
+                        foreach (var processor in serviceScope.ServiceProvider.GetServices<IProcessor>())
+                        {
+                            ulong processorAgentId = processor.GetProcessorAgentId();
+                            Logger.LogInformation("WECOMSERVICE: Initialize processor {ProcessorAgentId}", processorAgentId);
+                            processors[processorAgentId] = processor.GetType();
+                        }
+                        Processors = processors;
                     }
                 }
             }
@@ -45,24 +56,33 @@ namespace WeComCommon.Services
 
         private async Task<string> GetAccessTokenAsync(ulong agentId)
         {
-            if (AccessTokenByAgent.ContainsKey(agentId) && DateTime.Now - AccessTokenByAgent[agentId].ObtainedDateTime < new TimeSpan(0, 0, AccessTokenByAgent[agentId].ExpiresIn))
+            await TokenLock.WaitAsync();
+            try
             {
-                return AccessTokenByAgent[agentId].AccessToken;
-            }
-            else
-            {
+                if (AccessTokenByAgent.TryGetValue(agentId, out var cached)
+                    && !string.IsNullOrEmpty(cached.AccessToken)
+                    && cached.ObtainedDateTime.AddSeconds(Math.Max(0, cached.ExpiresIn - 60)) > DateTimeOffset.UtcNow)
+                {
+                    return cached.AccessToken;
+                }
+
                 Logger.LogDebug("WECOMSERVICE: RECLAIM ACCESS TOKEN");
-                HttpClient client = new HttpClient();
                 string corpId = WeComConfiguration.AppConfigurations.First(x => x.AgentId == agentId).CorpId;
                 string corpSecret = WeComConfiguration.AppConfigurations.First(x => x.AgentId == agentId).CorpSecret;
-                var response = await client.GetStringAsync($"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpId}&corpsecret={corpSecret}");
+                var response = await HttpClient.GetStringAsync($"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpId}&corpsecret={corpSecret}");
                 WeComAccessToken newToken = JsonSerializer.Deserialize<WeComAccessToken>(response);
-                if (newToken != null)
+                if (newToken == null || newToken.ErrCode != 0 || string.IsNullOrEmpty(newToken.AccessToken))
                 {
-                    AccessTokenByAgent[agentId] = newToken;
-                    return newToken.AccessToken;
+                    throw new InvalidOperationException($"Unable to gain access token for app {agentId}: {newToken?.ErrCode} {newToken?.ErrMsg}");
                 }
-                throw new InvalidOperationException($"Unable to gain access token for app {agentId}");
+
+                newToken.ObtainedDateTime = DateTimeOffset.UtcNow;
+                AccessTokenByAgent[agentId] = newToken;
+                return newToken.AccessToken;
+            }
+            finally
+            {
+                TokenLock.Release();
             }
         }
 
@@ -73,12 +93,7 @@ namespace WeComCommon.Services
                 Logger.LogInformation("WECOMSERVICE: SEND_MESSAGE skipped - source is null");
                 return;
             }
-            HttpClient client = new HttpClient();
-            var response = await client.PostAsJsonAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", regularMessage, new JsonSerializerOptions
-            {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-
-            });
+            var response = await HttpClient.PostAsJsonAsync($"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={await GetAccessTokenAsync(regularMessage.AgentId)}", regularMessage, MessageJsonOptions);
             response.EnsureSuccessStatusCode();
             Logger.LogInformation("WECOMSERVICE: SEND_MESSAGE {ResponseContent}", await response.Content.ReadAsStringAsync());
         }
@@ -90,30 +105,38 @@ namespace WeComCommon.Services
                 return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, "该应用未设置对应处理程序");
             }
 
-            var serviceScope = ServiceProvider.CreateScope();
+            var serviceScope = ServiceProvider.CreateAsyncScope();
+            PendingWorkScope.Value = serviceScope;
+            try
+            {
+                var service = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
+                if (service is not IProcessor processor)
+                {
+                    Logger.LogError("WECOMSERVICE: No processor found for {AgentID}", receiveMessage.AgentID);
+                    throw new ArgumentNullException(nameof(receiveMessage.AgentID));
+                }
 
-            var service = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
-            if (service is IProcessor processor)
-            {
-                try
-                {
-                    return await processor.ReplyMessageAsync(receiveMessage, this);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "WECOMSERVICE: Command failed for agent {AgentId} user {User} content {Content}", receiveMessage.AgentID, receiveMessage.FromUserName, receiveMessage.Content);
-                    return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, FormatExceptionForUser(ex));
-                }
+                return await processor.ReplyMessageAsync(receiveMessage, this);
             }
-            else
+            catch (Exception ex) when (ex is not ArgumentNullException)
             {
-                Logger.LogError("WECOMSERVICE: No processor found for {AgentID}", receiveMessage.AgentID);
-                throw new ArgumentNullException(nameof(receiveMessage.AgentID));
+                Logger.LogError(ex, "WECOMSERVICE: Command failed for agent {AgentId} user {User} content {Content}", receiveMessage.AgentID, receiveMessage.FromUserName, receiveMessage.Content);
+                return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, FormatExceptionForUser(ex));
+            }
+            finally
+            {
+                if (PendingWorkScope.Value.HasValue)
+                {
+                    await serviceScope.DisposeAsync();
+                    PendingWorkScope.Value = null;
+                }
             }
         }
 
         public void RunInBackground(WeComReceiveMessage receiveMessage, Func<Task> work)
         {
+            var scope = PendingWorkScope.Value;
+            PendingWorkScope.Value = null;
             _ = Task.Run(async () =>
             {
                 try
@@ -123,6 +146,13 @@ namespace WeComCommon.Services
                 catch (Exception ex)
                 {
                     await ReportFailureAsync(receiveMessage.AgentID, receiveMessage.FromUserName, ex, $"agent {receiveMessage.AgentID} user {receiveMessage.FromUserName} content {receiveMessage.Content}");
+                }
+                finally
+                {
+                    if (scope.HasValue)
+                    {
+                        await scope.Value.DisposeAsync();
+                    }
                 }
             });
         }

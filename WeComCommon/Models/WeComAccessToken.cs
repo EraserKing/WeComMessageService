@@ -16,6 +16,6 @@ namespace WeComCommon.Models
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
 
-        public DateTime ObtainedDateTime { get; set; }
+        public DateTimeOffset ObtainedDateTime { get; set; }
     }
 }
