@@ -14,11 +14,11 @@ namespace Qinglong.Services
         private readonly ILogger<QinglongService> Logger;
         private readonly IOptions<QinglongServiceConfiguration> Options;
 
+        private readonly record struct QinglongAuth(string Token, string TokenType, long ExpirationUnixSeconds);
+
         private static readonly HttpClient HttpClient = new();
         private static readonly SemaphoreSlim LoginLock = new(1, 1);
-        private static string? CachedToken;
-        private static string? CachedTokenType;
-        private static long TokenExpirationUnixSeconds;
+        private static QinglongAuth? CachedAuth;
 
         public QinglongService(ILogger<QinglongService> logger, IOptions<QinglongServiceConfiguration> options)
         {
@@ -34,25 +34,20 @@ namespace Qinglong.Services
 
         private static long UnixNow() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        private static bool HasValidCachedToken() =>
-            !string.IsNullOrEmpty(CachedToken) && TokenExpirationUnixSeconds > UnixNow();
+        private static bool IsValid(QinglongAuth auth) =>
+            !string.IsNullOrEmpty(auth.Token) && auth.ExpirationUnixSeconds > UnixNow();
 
-        private static void ClearCachedToken()
+        private static HttpRequestMessage CreateAuthorizedRequest(HttpMethod method, string uri, QinglongAuth auth, HttpContent? content = null)
         {
-            CachedToken = null;
-            CachedTokenType = null;
-            TokenExpirationUnixSeconds = 0;
-            HttpClient.DefaultRequestHeaders.Authorization = null;
+            var request = new HttpRequestMessage(method, uri)
+            {
+                Content = content,
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue(auth.TokenType, auth.Token);
+            return request;
         }
 
-        private static void ApplyCachedAuthorization()
-        {
-            HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-                string.IsNullOrEmpty(CachedTokenType) ? "Bearer" : CachedTokenType,
-                CachedToken);
-        }
-
-        public async Task LoginAsync()
+        private async Task<QinglongAuth> GetAuthAsync()
         {
             if (string.IsNullOrEmpty(Options.Value.SiteUrl) || string.IsNullOrEmpty(Options.Value.ClientId) || string.IsNullOrEmpty(Options.Value.ClientSecret))
             {
@@ -60,26 +55,16 @@ namespace Qinglong.Services
                 throw new LoginException("Site, client ID, or client password is not set");
             }
 
-            if (HasValidCachedToken())
-            {
-                ApplyCachedAuthorization();
-                Logger.LogInformation("QINGLONG: Token is still valid");
-                return;
-            }
-
             await LoginLock.WaitAsync();
             try
             {
-                if (HasValidCachedToken())
+                if (CachedAuth is { } cached && IsValid(cached))
                 {
-                    ApplyCachedAuthorization();
                     Logger.LogInformation("QINGLONG: Token is still valid");
-                    return;
+                    return cached;
                 }
 
-                // Qinglong checks Authorization before /open/auth/token. A cached or expired
-                // token on this request is rejected as 暂无权限 or Token 已失效.
-                ClearCachedToken();
+                CachedAuth = null;
                 Logger.LogInformation("QINGLONG: Ready to log in");
 
                 using var authRequest = new HttpRequestMessage(
@@ -101,11 +86,13 @@ namespace Qinglong.Services
                     && !string.IsNullOrEmpty(authResponse.data.token)
                     && authResponse.data.expiration > UnixNow())
                 {
-                    CachedToken = authResponse.data.token;
-                    CachedTokenType = authResponse.data.token_type;
-                    TokenExpirationUnixSeconds = authResponse.data.expiration;
-                    ApplyCachedAuthorization();
-                    Logger.LogInformation("QINGLONG: Token obtained, expiration is {Expiration}", authResponse.data.expiration);
+                    var auth = new QinglongAuth(
+                        authResponse.data.token,
+                        string.IsNullOrEmpty(authResponse.data.token_type) ? "Bearer" : authResponse.data.token_type,
+                        authResponse.data.expiration);
+                    CachedAuth = auth;
+                    Logger.LogInformation("QINGLONG: Token obtained, expiration is {Expiration}", auth.ExpirationUnixSeconds);
+                    return auth;
                 }
                 else if (authResponse.code == 200)
                 {
@@ -131,13 +118,17 @@ namespace Qinglong.Services
 
         public async Task ExecuteCommandAsync(string command)
         {
-            await LoginAsync();
+            var auth = await GetAuthAsync();
             string cronName = Options.Value.Commands[command];
 
-            var findCronResponseMessage = await HttpClient.GetAsync(QueryHelpers.AddQueryString("/open/crons", new Dictionary<string, string?>
-            {
-                ["searchValue"] = cronName,
-            }));
+            using var findCronRequest = CreateAuthorizedRequest(
+                HttpMethod.Get,
+                QueryHelpers.AddQueryString("/open/crons", new Dictionary<string, string?>
+                {
+                    ["searchValue"] = cronName,
+                }),
+                auth);
+            var findCronResponseMessage = await HttpClient.SendAsync(findCronRequest);
             QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (findCronResponse == null || findCronResponse.code != 200)
             {
@@ -154,7 +145,8 @@ namespace Qinglong.Services
             }
             Logger.LogInformation("QINGLONG: Find cron task id {Id}", id);
 
-            var runConResponseMessage = await HttpClient.PutAsJsonAsync("/open/crons/run", new int[] { id.Value });
+            using var runCronRequest = CreateAuthorizedRequest(HttpMethod.Put, "/open/crons/run", auth, JsonContent.Create(new int[] { id.Value }));
+            var runConResponseMessage = await HttpClient.SendAsync(runCronRequest);
             QinglongCronModel? runCronResponse = await runConResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (runCronResponse == null || runCronResponse.code != 200)
             {
@@ -166,9 +158,10 @@ namespace Qinglong.Services
 
         public async Task RerunTodayTasks()
         {
-            await LoginAsync();
+            var auth = await GetAuthAsync();
 
-            var findCronResponseMessage = await HttpClient.GetAsync("/open/crons");
+            using var findCronRequest = CreateAuthorizedRequest(HttpMethod.Get, "/open/crons", auth);
+            var findCronResponseMessage = await HttpClient.SendAsync(findCronRequest);
             QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (findCronResponse == null || findCronResponse.code != 200)
             {
@@ -190,7 +183,8 @@ namespace Qinglong.Services
             }
             Logger.LogInformation("QINGLONG: Find cron tasks with ids {Ids}", string.Join(",", ids));
 
-            var runConResponseMessage = await HttpClient.PutAsJsonAsync("/open/crons/run", ids);
+            using var runCronRequest = CreateAuthorizedRequest(HttpMethod.Put, "/open/crons/run", auth, JsonContent.Create(ids));
+            var runConResponseMessage = await HttpClient.SendAsync(runCronRequest);
             QinglongCronModel? runCronResponse = await runConResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (runCronResponse == null || runCronResponse.code != 200)
             {
