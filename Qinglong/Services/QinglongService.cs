@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Qinglong.Exceptions;
 using Qinglong.Models;
 using Qinglong.Models.Configurations;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace Qinglong.Services
@@ -13,14 +14,17 @@ namespace Qinglong.Services
         private readonly ILogger<QinglongService> Logger;
         private readonly IOptions<QinglongServiceConfiguration> Options;
 
-        private static HttpClient HttpClient { get; set; } = new HttpClient();
-        private static int TokenExpiration { get; set; }
+        private static readonly HttpClient HttpClient = new();
+        private static readonly SemaphoreSlim LoginLock = new(1, 1);
+        private static string? CachedToken;
+        private static string? CachedTokenType;
+        private static long TokenExpirationUnixSeconds;
 
         public QinglongService(ILogger<QinglongService> logger, IOptions<QinglongServiceConfiguration> options)
         {
             Logger = logger;
             Options = options;
-            if (HttpClient.BaseAddress == null)
+            if (HttpClient.BaseAddress == null && !string.IsNullOrEmpty(options.Value.SiteUrl))
             {
                 HttpClient.BaseAddress = new Uri(options.Value.SiteUrl);
             }
@@ -28,7 +32,25 @@ namespace Qinglong.Services
 
         public bool IsCommandValid(string command) => Options.Value.Commands?.ContainsKey(command) ?? false;
 
-        private static long GetUnixEpochSeconds() => (long)(DateTime.Now - new DateTime(1970, 1, 1)).TotalSeconds;
+        private static long UnixNow() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private static bool HasValidCachedToken() =>
+            !string.IsNullOrEmpty(CachedToken) && TokenExpirationUnixSeconds > UnixNow();
+
+        private static void ClearCachedToken()
+        {
+            CachedToken = null;
+            CachedTokenType = null;
+            TokenExpirationUnixSeconds = 0;
+            HttpClient.DefaultRequestHeaders.Authorization = null;
+        }
+
+        private static void ApplyCachedAuthorization()
+        {
+            HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                string.IsNullOrEmpty(CachedTokenType) ? "Bearer" : CachedTokenType,
+                CachedToken);
+        }
 
         public async Task LoginAsync()
         {
@@ -38,40 +60,72 @@ namespace Qinglong.Services
                 throw new LoginException("Site, client ID, or client password is not set");
             }
 
-            if (TokenExpiration > GetUnixEpochSeconds() + 60 * 60)
+            if (HasValidCachedToken())
             {
+                ApplyCachedAuthorization();
                 Logger.LogInformation("QINGLONG: Token is still valid");
                 return;
             }
 
-            Logger.LogInformation("QINGLONG: Ready to log in");
+            await LoginLock.WaitAsync();
+            try
+            {
+                if (HasValidCachedToken())
+                {
+                    ApplyCachedAuthorization();
+                    Logger.LogInformation("QINGLONG: Token is still valid");
+                    return;
+                }
 
-            var authMessage = await HttpClient.GetAsync(QueryHelpers.AddQueryString("/open/auth/token", new Dictionary<string, string?>
-            {
-                ["client_id"] = Options.Value.ClientId,
-                ["client_secret"] = Options.Value.ClientSecret,
-            }));
-            QinglongAuthTokenModel? authResponse = await authMessage.Content.ReadFromJsonAsync<QinglongAuthTokenModel>();
-            if (authResponse == null)
-            {
-                Logger.LogError("QINGLONG: Log in response is null");
-                throw new LoginException("Log in response is null");
+                // Qinglong checks Authorization before /open/auth/token. A cached or expired
+                // token on this request is rejected as 暂无权限 or Token 已失效.
+                ClearCachedToken();
+                Logger.LogInformation("QINGLONG: Ready to log in");
+
+                using var authRequest = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    QueryHelpers.AddQueryString("/open/auth/token", new Dictionary<string, string?>
+                    {
+                        ["client_id"] = Options.Value.ClientId,
+                        ["client_secret"] = Options.Value.ClientSecret,
+                    }));
+                var authMessage = await HttpClient.SendAsync(authRequest);
+                QinglongAuthTokenModel? authResponse = await authMessage.Content.ReadFromJsonAsync<QinglongAuthTokenModel>();
+                if (authResponse == null)
+                {
+                    Logger.LogError("QINGLONG: Log in response is null");
+                    throw new LoginException("Log in response is null");
+                }
+                else if (authResponse.code == 200
+                    && authResponse.data != null
+                    && !string.IsNullOrEmpty(authResponse.data.token)
+                    && authResponse.data.expiration > UnixNow())
+                {
+                    CachedToken = authResponse.data.token;
+                    CachedTokenType = authResponse.data.token_type;
+                    TokenExpirationUnixSeconds = authResponse.data.expiration;
+                    ApplyCachedAuthorization();
+                    Logger.LogInformation("QINGLONG: Token obtained, expiration is {Expiration}", authResponse.data.expiration);
+                }
+                else if (authResponse.code == 200)
+                {
+                    Logger.LogError("QINGLONG: Token is missing or already expired");
+                    throw new LoginException("Token is missing or already expired");
+                }
+                else if (authResponse.code == 400)
+                {
+                    Logger.LogError("QINGLONG: Wrong client ID or client secret");
+                    throw new LoginException("Wrong client ID or client secret");
+                }
+                else
+                {
+                    Logger.LogError("QINGLONG: Log in response code {Code} message {Message}", authResponse.code, authResponse.message);
+                    throw new LoginException($"Log in response code {authResponse.code} message {authResponse.message}");
+                }
             }
-            else if (authResponse.code == 200)
+            finally
             {
-                Logger.LogInformation("QINGLONG: Token obtained, expiration is {Expiration}", authResponse.data.expiration);
-                HttpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(authResponse.data.token_type, authResponse.data.token);
-                TokenExpiration = authResponse.data.expiration;
-            }
-            else if (authResponse.code == 400)
-            {
-                Logger.LogError("QINGLONG: Wrong client ID or client secret");
-                throw new LoginException("Wrong client ID or client secret");
-            }
-            else
-            {
-                Logger.LogError("QINGLONG: Log in response code {Code} message {Message}", authResponse.code, authResponse.message);
-                throw new LoginException($"Log in response code {authResponse.code} message {authResponse.message}");
+                LoginLock.Release();
             }
         }
 
