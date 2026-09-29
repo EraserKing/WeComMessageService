@@ -136,7 +136,7 @@ namespace Qinglong.Services
 
             var findCronResponseMessage = await HttpClient.GetAsync(QueryHelpers.AddQueryString("/open/crons", new Dictionary<string, string?>
             {
-                ["seachValue"] = cronName,
+                ["searchValue"] = cronName,
             }));
             QinglongCronModel? findCronResponse = await findCronResponseMessage.Content.ReadFromJsonAsync<QinglongCronModel>();
             if (findCronResponse == null || findCronResponse.code != 200)
