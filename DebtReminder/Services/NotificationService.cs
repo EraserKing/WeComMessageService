@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeComCommon.Models;
+using WeComCommon.Models.Configurations;
 using WeComCommon.Services;
 
 namespace DebtReminder.Services
@@ -23,6 +24,14 @@ namespace DebtReminder.Services
         {
             ServiceProvider = serviceProvider;
             Logger = logger;
+        }
+
+        private async Task ReportTimerFailureAsync(ulong agentId, Exception exception, string context)
+        {
+            using var scope = ServiceProvider.CreateScope();
+            var weComService = scope.ServiceProvider.GetRequiredService<WeComService>();
+            var adminPushId = scope.ServiceProvider.GetRequiredService<IOptions<WeComServicesConfiguration>>().Value.AdminPushId;
+            await weComService.ReportFailureAsync(agentId, adminPushId, exception, context);
         }
 
         private TimeSpan GetTimeSpanFromNextUtcHourMinute(int hour, int minute)
@@ -49,14 +58,21 @@ namespace DebtReminder.Services
 
             NewReleaseTimer = new Timer(async (param) =>
             {
-                using var timerServicesScope = ServiceProvider.CreateScope();
-                Logger.LogInformation("NOTIFICATION: Start release routine");
-                var newReleases = await CheckNewReleasesAsync();
-                if (newReleases != null)
+                try
                 {
-                    await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
+                    using var timerServicesScope = ServiceProvider.CreateScope();
+                    Logger.LogInformation("NOTIFICATION: Start release routine");
+                    var newReleases = await CheckNewReleasesAsync();
+                    if (newReleases != null)
+                    {
+                        await timerServicesScope.ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(newReleases);
+                    }
+                    Logger.LogInformation("NOTIFICATION: Finish release routine");
                 }
-                Logger.LogInformation("NOTIFICATION: Finish release routine");
+                catch (Exception ex)
+                {
+                    await ReportTimerFailureAsync(debtServiceConfiguration.SendByAgentId, ex, "NOTIFICATION release routine");
+                }
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute), TimeSpan.FromDays(1));
             Logger.LogInformation("NOTIFICATION: New release timer created at UTC {Hour}:{Minute}", debtServiceConfiguration.NewReleaseCheckHour, debtServiceConfiguration.NewReleaseCheckMinute);
         }
@@ -75,6 +91,8 @@ namespace DebtReminder.Services
 
             NewListingTimer = new Timer(async (param) =>
             {
+                try
+                {
                 using var timerServicesScope = ServiceProvider.CreateScope();
                 Logger.LogInformation("NOTIFICATION: Start listing routine");
                 var newListings = await CheckNewListingsAsync();
@@ -86,6 +104,11 @@ namespace DebtReminder.Services
                     }
                 }
                 Logger.LogInformation("NOTIFICATION: Finish listing routine");
+                }
+                catch (Exception ex)
+                {
+                    await ReportTimerFailureAsync(debtServiceConfiguration.SendByAgentId, ex, "NOTIFICATION listing routine");
+                }
             }, null, GetTimeSpanFromNextUtcHourMinute(debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute), TimeSpan.FromDays(1));
             Logger.LogInformation("NOTIFICATION: New listing timer created at UTC {Hour}:{Minute}", debtServiceConfiguration.NewListingCheckHour, debtServiceConfiguration.NewListingCheckMinute);
         }

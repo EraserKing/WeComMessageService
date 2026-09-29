@@ -28,93 +28,93 @@ namespace DebtReminder.Processors
             match = SubscribeRegex.Match(receiveMessage.Content);
             if (match.Success)
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             match = UnsubscribeRegex.Match(receiveMessage.Content);
             if (match.Success)
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             match = QueryRegex.Match(receiveMessage.Content);
             if (match.Success)
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING, match.Groups[1].Value);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "查询")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.LISTING);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "订阅申购")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.AddSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "取消订阅申购")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.DeleteSubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "查询订阅申购")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.QuerySubscriptionAsync(receiveMessage.FromUserName, ReminderType.RELEASE, "@all");
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "今日申购")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.RELEASE);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 
             if (receiveMessage.Content == "今日上市")
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var responseMessage = await DebtSubscriptionService.QueryNewEntriesTodayAsync(ReminderType.LISTING);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, responseMessage));
-                }).Start();
+                });
                 return null;
             }
 

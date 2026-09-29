@@ -23,7 +23,15 @@ namespace WeComMessageService.Controllers
         public async Task<IActionResult> Post(SubscriptionValidationEvent[] sve)
         {
             Logger.LogInformation("Receive Refresh App Configuration Request");
-            await OnDemandAzureAppConfigurationRefresher.RefreshAllRegisteredKeysAsync();
+            try
+            {
+                await OnDemandAzureAppConfigurationRefresher.RefreshAllRegisteredKeysAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to refresh app configuration");
+                return Problem(ex.Message);
+            }
             return Ok(new { validationResponse = sve.FirstOrDefault()?.data.validationCode });
         }
 
@@ -31,7 +39,15 @@ namespace WeComMessageService.Controllers
         public async Task<IActionResult> Post()
         {
             Logger.LogInformation("Force Refresh App Configuration");
-            await OnDemandAzureAppConfigurationRefresher.RefreshAllRegisteredKeysAsync();
+            try
+            {
+                await OnDemandAzureAppConfigurationRefresher.RefreshAllRegisteredKeysAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to force refresh app configuration");
+                return Problem(ex.Message);
+            }
             return Ok();
         }
     }

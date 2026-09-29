@@ -33,20 +33,16 @@ namespace Qbittorrent.Processors
         {
             if (receiveMessage.Content.StartsWith("magnet:"))
             {
-                try
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     string message = await QbittorrentService.AddItem(receiveMessage.Content);
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                }
-                catch (Exception ex)
-                {
-                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                }
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("L", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var items = await QbittorrentService.ListItems();
                     if (items == null)
@@ -62,92 +58,57 @@ namespace Qbittorrent.Processors
                         string message = string.Join($"{Environment.NewLine}{Environment.NewLine}", items.Select(x => $"[{x.ID}] {x.GetState()} {x.name} <{x.GetDynamicSize(x.size)}> <{x.progress * 100:0.##}%>"));
                         await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
                     }
-                }).Start();
+                });
                 return null;
             }
             else if (AddItemRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var url = AddItemRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = await QbittorrentService.AddItem(url);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var url = AddItemRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = await QbittorrentService.AddItem(url);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
             else if (DeleteItemRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var id = DeleteItemRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = await QbittorrentService.DeleteItem(id, false);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var id = DeleteItemRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = await QbittorrentService.DeleteItem(id, false);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
             else if (DeleteItemWithFileRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var id = DeleteItemWithFileRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = await QbittorrentService.DeleteItem(id, true);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var id = DeleteItemWithFileRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = await QbittorrentService.DeleteItem(id, true);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
             else if (PauseItemRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var id = PauseItemRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = await QbittorrentService.PauseItem(id);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var id = PauseItemRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = await QbittorrentService.PauseItem(id);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
             else if (ResumeItemRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var id = AddItemRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = await QbittorrentService.ResumeItem(id);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var id = ResumeItemRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = await QbittorrentService.ResumeItem(id);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("T", StringComparison.OrdinalIgnoreCase))
@@ -160,19 +121,12 @@ namespace Qbittorrent.Processors
             }
             else if (SwitchSiteRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        var siteName = SwitchSiteRegex.Match(receiveMessage.Content).Groups[1].Value;
-                        string message = QbittorrentService.SwitchSite(siteName);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    var siteName = SwitchSiteRegex.Match(receiveMessage.Content).Groups[1].Value;
+                    string message = QbittorrentService.SwitchSite(siteName);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
 

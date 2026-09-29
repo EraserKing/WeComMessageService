@@ -23,63 +23,56 @@ namespace Mikan.Processors
         {
             if (receiveMessage.Content.Equals("ALL", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     string message = MikanService.CreateList();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                }).Start();
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("REFRESH", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var content = await MikanService.Refresh();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, content ?? "Refreshed with no entry"));
-                }).Start();
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("FORCEREFRESH", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     var content = await MikanService.ForceRefresh();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, content ?? "Force refreshed with no entry"));
-                }).Start();
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("CLEAR", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     await MikanService.ClearOutDatedCache();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Cleared out-dated items"));
-                }).Start();
+                });
                 return null;
             }
             else if (receiveMessage.Content.Equals("CLEARALL", StringComparison.OrdinalIgnoreCase))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
                     await MikanService.ClearCache();
                     await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, "Cleared all items"));
-                }).Start();
+                });
                 return null;
             }
             else if (ItemRegex.IsMatch(receiveMessage.Content))
             {
-                new Thread(async () =>
+                weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    try
-                    {
-                        string message = await MikanService.AddItem(receiveMessage.Content);
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
-                    }
-                    catch (Exception ex)
-                    {
-                        await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, ex.Message));
-                    }
-                }).Start();
+                    string message = await MikanService.AddItem(receiveMessage.Content);
+                    await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, message));
+                });
                 return null;
             }
 

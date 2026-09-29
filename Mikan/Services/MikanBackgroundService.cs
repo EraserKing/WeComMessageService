@@ -38,6 +38,14 @@ namespace Mikan.Services
 
         private SemaphoreSlim UpdateCacheItemLock = new SemaphoreSlim(1);
 
+        private async Task ReportTimerFailureAsync(Exception exception, string context)
+        {
+            using var scope = ServiceProvider.CreateScope();
+            var weComService = scope.ServiceProvider.GetRequiredService<WeComService>();
+            var adminPushId = scope.ServiceProvider.GetRequiredService<IOptions<WeComServicesConfiguration>>().Value.AdminPushId;
+            await weComService.ReportFailureAsync(Options.Value.SendByAgentId, adminPushId, exception, context);
+        }
+
         public void CreateRefreshTimer()
         {
             if (RefreshTimer != null)
@@ -50,15 +58,21 @@ namespace Mikan.Services
             }
             RefreshTimer = new Timer(async (param) =>
             {
-                Logger.LogInformation("MIKAN: Start timer of refreshing at {DateTime}", DateTime.Now);
-                var content = await Refresh();
-                if (content != null)
+                try
                 {
-                    var message = WeComRegularMessage.CreateTextMessage(Options.Value.SendByAgentId, "@all", content);
-                    await ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(message);
+                    Logger.LogInformation("MIKAN: Start timer of refreshing at {DateTime}", DateTime.Now);
+                    var content = await Refresh();
+                    if (content != null)
+                    {
+                        var message = WeComRegularMessage.CreateTextMessage(Options.Value.SendByAgentId, "@all", content);
+                        await ServiceProvider.GetRequiredService<WeComService>().SendMessageAsync(message);
+                    }
+                    Logger.LogInformation("MIKAN: Finish timer of refreshing routine");
                 }
-                Logger.LogInformation("MIKAN: Finish timer of refreshing routine");
-
+                catch (Exception ex)
+                {
+                    await ReportTimerFailureAsync(ex, "MIKAN refresh timer");
+                }
             }, null, 20, 3600 * 1000);
         }
 
@@ -74,9 +88,16 @@ namespace Mikan.Services
             }
             ClearOutDatedTimer = new Timer(async (param) =>
             {
-                Logger.LogInformation("MIKAN: Start timer of clearing out dated items at {DateTime}", DateTime.Now);
-                await ClearOutDatedCache();
-                Logger.LogInformation("MIKAN: Finish timer of clearing out dated items routine");
+                try
+                {
+                    Logger.LogInformation("MIKAN: Start timer of clearing out dated items at {DateTime}", DateTime.Now);
+                    await ClearOutDatedCache();
+                    Logger.LogInformation("MIKAN: Finish timer of clearing out dated items routine");
+                }
+                catch (Exception ex)
+                {
+                    await ReportTimerFailureAsync(ex, "MIKAN clear timer");
+                }
             }, null, 0, 3600 * 1000);
         }
 
@@ -142,6 +163,7 @@ namespace Mikan.Services
             catch (Exception exception)
             {
                 Logger.LogError(exception, "MIKAN: Error occurred when fetching RSS");
+                throw;
             }
             finally
             {

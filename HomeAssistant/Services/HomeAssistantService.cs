@@ -506,7 +506,7 @@ namespace HomeAssistant.Services
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error loading entity mappings");
-                return null;
+                throw;
             }
         }
 

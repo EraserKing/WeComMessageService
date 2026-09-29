@@ -95,13 +95,70 @@ namespace WeComCommon.Services
             var service = serviceScope.ServiceProvider.GetService(Processors[receiveMessage.AgentID]);
             if (service is IProcessor processor)
             {
-                return await processor.ReplyMessageAsync(receiveMessage, this);
+                try
+                {
+                    return await processor.ReplyMessageAsync(receiveMessage, this);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "WECOMSERVICE: Command failed for agent {AgentId} user {User} content {Content}", receiveMessage.AgentID, receiveMessage.FromUserName, receiveMessage.Content);
+                    return WeComInstanceReply.Create(receiveMessage.ToUserName, receiveMessage.FromUserName, FormatExceptionForUser(ex));
+                }
             }
             else
             {
                 Logger.LogError("WECOMSERVICE: No processor found for {AgentID}", receiveMessage.AgentID);
                 throw new ArgumentNullException(nameof(receiveMessage.AgentID));
             }
+        }
+
+        public void RunInBackground(WeComReceiveMessage receiveMessage, Func<Task> work)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await work();
+                }
+                catch (Exception ex)
+                {
+                    await ReportFailureAsync(receiveMessage.AgentID, receiveMessage.FromUserName, ex, $"agent {receiveMessage.AgentID} user {receiveMessage.FromUserName} content {receiveMessage.Content}");
+                }
+            });
+        }
+
+        public async Task ReportFailureAsync(ulong agentId, string toUser, Exception exception, string context)
+        {
+            Logger.LogError(exception, "WECOMSERVICE: {Context} failed", context);
+            if (string.IsNullOrWhiteSpace(toUser))
+            {
+                return;
+            }
+
+            try
+            {
+                await SendMessageAsync(WeComRegularMessage.CreateTextMessage(agentId, toUser, FormatExceptionForUser(exception)));
+            }
+            catch (Exception sendEx)
+            {
+                Logger.LogError(sendEx, "WECOMSERVICE: Failed to send failure reply for {Context}", context);
+            }
+        }
+
+        public static string FormatExceptionForUser(Exception exception)
+        {
+            var messages = new List<string>();
+            for (var current = exception; current != null; current = current.InnerException)
+            {
+                if (!string.IsNullOrWhiteSpace(current.Message) && (messages.Count == 0 || messages[^1] != current.Message))
+                {
+                    messages.Add(current.Message);
+                }
+            }
+
+            var text = messages.Count == 0 ? exception.ToString() : string.Join(" -> ", messages);
+            const int maxLength = 1800;
+            return text.Length <= maxLength ? text : text[..maxLength];
         }
     }
 }

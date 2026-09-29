@@ -25,6 +25,7 @@ namespace Eastmoney.Services
                 if (forceRefresh || LastFetchedDateTime.Date < DateTime.Today || Resource == null)
                 {
                     int retry = 0;
+                    Exception? lastException = null;
                     while (retry++ < 3)
                     {
                         try
@@ -47,9 +48,15 @@ namespace Eastmoney.Services
                         }
                         catch (Exception ex)
                         {
+                            lastException = ex;
                             Logger.LogError(ex, "Unable to connect to EastMoney");
                             Thread.Sleep(5000);
                         }
+                    }
+
+                    if (lastException != null && Resource == null)
+                    {
+                        throw lastException;
                     }
                 }
             }

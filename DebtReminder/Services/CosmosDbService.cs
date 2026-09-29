@@ -44,8 +44,8 @@ namespace DebtReminder.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError("Unable to add item", ex);
-                return CosmosDbActionResult.Failed;
+                Logger.LogError(ex, "Unable to add item");
+                throw;
             }
         }
 
@@ -66,7 +66,7 @@ namespace DebtReminder.Services
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Unable to delete item");
-                return CosmosDbActionResult.Failed;
+                throw;
             }
         }
 
@@ -80,7 +80,7 @@ namespace DebtReminder.Services
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Unable to query item(s)");
-                return (CosmosDbActionResult.Failed, null);
+                throw;
             }
         }
     }
