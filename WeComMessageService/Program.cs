@@ -116,6 +116,12 @@ builder.Services.AddHostedService(provider => provider.GetService<MikanBackgroun
 
 var app = builder.Build();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var debtReminderContext = scope.ServiceProvider.GetRequiredService<DebtReminderContext>();
+    await debtReminderContext.Database.EnsureCreatedAsync();
+}
+
 // Configure the HTTP request pipeline.
 app.UseCors("default");
 

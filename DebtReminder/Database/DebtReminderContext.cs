@@ -7,7 +7,6 @@ namespace DebtReminder.Database
     {
         public DebtReminderContext(DbContextOptions<DebtReminderContext> options) : base(options)
         {
-            Database.EnsureCreated();
         }
 
         public DbSet<DebtReminderModel> DebtReminders { get; set; }

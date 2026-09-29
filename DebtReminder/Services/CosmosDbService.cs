@@ -30,8 +30,8 @@ namespace DebtReminder.Services
         {
             try
             {
-                var existingItems = DbContext.Set<V>().Where(comparer).ToArray();
-                if (existingItems.Length > 0)
+                var existingItems = await DbContext.Set<V>().ToListAsync();
+                if (existingItems.Any(comparer))
                 {
                     return CosmosDbActionResult.Duplicated;
                 }
@@ -51,11 +51,11 @@ namespace DebtReminder.Services
 
         public async Task<CosmosDbActionResult> DeleteItemAsync(V record, Func<V, bool> comparer)
         {
-            var existingItemsQuery = DbContext.Set<V>().Where(comparer);
             try
             {
+                var existingItems = (await DbContext.Set<V>().ToListAsync()).Where(comparer);
                 bool isDeleted = false;
-                foreach (var existingItem in existingItemsQuery)
+                foreach (var existingItem in existingItems)
                 {
                     DbContext.Remove(existingItem);
                     isDeleted = true;
@@ -72,11 +72,9 @@ namespace DebtReminder.Services
 
         public async Task<(CosmosDbActionResult, IEnumerable<V>?)> QueryItemsAsync(Func<V, bool> queryCondition)
         {
-            var items = DbContext.Set<V>().Where(queryCondition);
-
             try
             {
-                var queryResults = items.ToArray();
+                var queryResults = (await DbContext.Set<V>().ToListAsync()).Where(queryCondition).ToArray();
                 return (CosmosDbActionResult.Success, queryResults);
             }
             catch (Exception ex)
