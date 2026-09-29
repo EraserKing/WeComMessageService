@@ -49,6 +49,9 @@ namespace Qbittorrent.Services
             httpClientHandler.CookieContainer = new System.Net.CookieContainer();
 
             var client = new HttpClient(httpClientHandler);
+            var previous = Client;
+            Client = client;
+            previous.Dispose();
 
             var loginPostContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>()
             {

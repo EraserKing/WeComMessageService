@@ -13,6 +13,7 @@ namespace Mikan.Services
         private readonly QbittorrentService QbittorrentService;
 
         public const string MikanSiteUrl = "https://mikanime.tv";
+        private static readonly HttpClient HttpClient = new();
 
         public MikanService(ILogger<MikanService> logger, MikanBackgroundService mikanBackgroundService, QbittorrentService qbittorrentService)
         {
@@ -54,7 +55,6 @@ namespace Mikan.Services
                 var foundItem = MikanBackgroundService.AvailableItems.FirstOrDefault(ci => ci.Key == receivedKey);
                 if (foundItem != null)
                 {
-                    HttpClient httpClient = new HttpClient();
                     await QbittorrentService.AddItem(foundItem.Url);
                     Logger.LogInformation("MIKAN: Added torrent {Title}", foundItem.Title);
                     return $"Added torrent of {foundItem.Title}";
@@ -76,8 +76,7 @@ namespace Mikan.Services
         public async Task<string> AddEpisodeById(string episodeId)
         {
             var taskUrl = $"{MikanSiteUrl}/Home/Episode/{episodeId}";
-            HttpClient httpClient = new HttpClient();
-            var episodePageResponse = await httpClient.GetAsync(taskUrl);
+            var episodePageResponse = await HttpClient.GetAsync(taskUrl);
             var episodePageString = await episodePageResponse.Content.ReadAsStringAsync();
             var episodeMatch = new Regex(@"href=\""(.+\.torrent)\""").Match(episodePageString);
             if (episodeMatch.Success)
