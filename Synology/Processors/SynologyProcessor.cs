@@ -33,7 +33,7 @@ namespace Synology.Processors
             SynologyService = synologyService;
         }
 
-        public ulong GetProcessorAgentId() => 1000016;
+        public ulong GetProcessorAgentId() => 1000007;
 
         public Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, WeComService weComService)
         {
