@@ -19,6 +19,9 @@ using Qbittorrent.Services;
 using Qinglong.Models.Configurations;
 using Qinglong.Processors;
 using Qinglong.Services;
+using Synology.Models.Configurations;
+using Synology.Processors;
+using Synology.Services;
 using Utilities.Utilities;
 using WeComCommon.Models.Configurations;
 using WeComCommon.Processors.Interfaces;
@@ -81,6 +84,7 @@ builder.Services.Configure<QinglongServiceConfiguration>(builder.Configuration.G
 builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetSection("MikanService"));
 builder.Services.Configure<QbittorrentServiceConfiguration>(builder.Configuration.GetSection("QbittorrentService"));
 builder.Services.Configure<HomeAssistantConfiguration>(builder.Configuration.GetSection("HomeAssistant"));
+builder.Services.Configure<SynologyConfiguration>(builder.Configuration.GetSection("Synology"));
 
 builder.Services.AddSingleton<WeComService>();
 builder.Services.AddSingleton<ValueHolder<QbittorrentServiceConfigurationSite>>();
@@ -94,6 +98,7 @@ builder.Services.AddScoped<QinglongService>();
 builder.Services.AddScoped<MikanService>();
 builder.Services.AddScoped<QbittorrentService>();
 builder.Services.AddScoped<HomeAssistantService>();
+builder.Services.AddSingleton<SynologyService>();
 
 builder.Services.AddScoped<IProcessor, DebtMessageProcessor>();
 builder.Services.AddScoped<DebtMessageProcessor>();
@@ -109,6 +114,9 @@ builder.Services.AddScoped<QbittorrentProcessor>();
 
 builder.Services.AddScoped<IProcessor, HomeAssistantProcessor>();
 builder.Services.AddScoped<HomeAssistantProcessor>();
+
+builder.Services.AddScoped<IProcessor, SynologyProcessor>();
+builder.Services.AddScoped<SynologyProcessor>();
 
 builder.Services.AddHostedService<NotificationService>();
 builder.Services.AddSingleton<MikanBackgroundService>();
