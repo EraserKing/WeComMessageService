@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Mikan\Mikan.csproj" />
     <ProjectReference Include="..\Qinglong\Qinglong.csproj" />
     <ProjectReference Include="..\Synology\Synology.csproj" />
+    <ProjectReference Include="..\TeamsPresence\TeamsPresence.csproj" />
     <ProjectReference Include="..\Utilities\Utilities.csproj" />
     <ProjectReference Include="..\WeComCommon\WeComCommon.csproj" />
   </ItemGroup>

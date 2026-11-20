@@ -22,6 +22,9 @@ using Qinglong.Services;
 using Synology.Models.Configurations;
 using Synology.Processors;
 using Synology.Services;
+using TeamsPresence.Models.Configurations;
+using TeamsPresence.Processors;
+using TeamsPresence.Services;
 using Utilities.Utilities;
 using WeComCommon.Models.Configurations;
 using WeComCommon.Processors.Interfaces;
@@ -85,6 +88,7 @@ builder.Services.Configure<MikanServiceConfiguration>(builder.Configuration.GetS
 builder.Services.Configure<QbittorrentServiceConfiguration>(builder.Configuration.GetSection("QbittorrentService"));
 builder.Services.Configure<HomeAssistantConfiguration>(builder.Configuration.GetSection("HomeAssistant"));
 builder.Services.Configure<SynologyConfiguration>(builder.Configuration.GetSection("Synology"));
+builder.Services.Configure<TeamsPresenceConfiguration>(builder.Configuration.GetSection("TeamsPresence"));
 
 builder.Services.AddSingleton<WeComService>();
 builder.Services.AddSingleton<ValueHolder<QbittorrentServiceConfigurationSite>>();
@@ -99,6 +103,7 @@ builder.Services.AddScoped<MikanService>();
 builder.Services.AddScoped<QbittorrentService>();
 builder.Services.AddScoped<HomeAssistantService>();
 builder.Services.AddSingleton<SynologyService>();
+builder.Services.AddScoped<TeamsPresenceService>();
 
 builder.Services.AddScoped<IProcessor, DebtMessageProcessor>();
 builder.Services.AddScoped<DebtMessageProcessor>();
@@ -117,6 +122,9 @@ builder.Services.AddScoped<HomeAssistantProcessor>();
 
 builder.Services.AddScoped<IProcessor, SynologyProcessor>();
 builder.Services.AddScoped<SynologyProcessor>();
+
+builder.Services.AddScoped<IProcessor, TeamsPresenceProcessor>();
+builder.Services.AddScoped<TeamsPresenceProcessor>();
 
 builder.Services.AddHostedService<NotificationService>();
 builder.Services.AddSingleton<MikanBackgroundService>();
