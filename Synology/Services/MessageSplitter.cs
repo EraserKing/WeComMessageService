@@ -3,9 +3,9 @@ using System.Text;
 namespace Synology.Services
 {
     /// <summary>
-    /// Splits markdown content into chunks that fit WeCom's message size limit (2048 bytes).
+    /// Splits message content into chunks that fit WeCom's message size limit (2048 bytes).
     /// </summary>
-    public static class MarkdownMessageSplitter
+    public static class MessageSplitter
     {
         public const int DefaultMaxBytes = 1900;
 

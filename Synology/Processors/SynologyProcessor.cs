@@ -47,8 +47,8 @@ namespace Synology.Processors
             {
                 weComService.RunInBackground(receiveMessage, async () =>
                 {
-                    var markdown = await SynologyService.GetStatusMarkdownAsync();
-                    await SendMarkdownAsync(weComService, receiveMessage, markdown);
+                    var text = await SynologyService.GetStatusTextAsync();
+                    await SendTextAsync(weComService, receiveMessage, text);
                 });
 
                 return Task.FromResult<WeComInstanceReply>(null!);
@@ -61,8 +61,8 @@ namespace Synology.Processors
                 {
                     weComService.RunInBackground(receiveMessage, async () =>
                     {
-                        var markdown = await SynologyService.GetFanMarkdownAsync();
-                        await SendMarkdownAsync(weComService, receiveMessage, markdown);
+                        var text = await SynologyService.GetFanTextAsync();
+                        await SendTextAsync(weComService, receiveMessage, text);
                     });
 
                     return Task.FromResult<WeComInstanceReply>(null!);
@@ -72,8 +72,8 @@ namespace Synology.Processors
                 {
                     weComService.RunInBackground(receiveMessage, async () =>
                     {
-                        var markdown = await SynologyService.SetFanModeAsync(mode);
-                        await SendMarkdownAsync(weComService, receiveMessage, markdown);
+                        var text = await SynologyService.SetFanModeAsync(mode);
+                        await SendTextAsync(weComService, receiveMessage, text);
                     });
 
                     return Task.FromResult<WeComInstanceReply>(null!);
@@ -102,11 +102,11 @@ namespace Synology.Processors
             })));
         }
 
-        private static async Task SendMarkdownAsync(WeComService weComService, WeComReceiveMessage receiveMessage, string markdown)
+        private static async Task SendTextAsync(WeComService weComService, WeComReceiveMessage receiveMessage, string text)
         {
-            foreach (var chunk in MarkdownMessageSplitter.Split(markdown))
+            foreach (var chunk in MessageSplitter.Split(text))
             {
-                await weComService.SendMessageAsync(WeComRegularMessage.CreateMarkdownMessage(receiveMessage.AgentID, receiveMessage.FromUserName, chunk));
+                await weComService.SendMessageAsync(WeComRegularMessage.CreateTextMessage(receiveMessage.AgentID, receiveMessage.FromUserName, chunk));
             }
         }
     }

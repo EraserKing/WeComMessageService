@@ -58,7 +58,7 @@ namespace Synology.Services
             Client = new HttpClient(handler) { Timeout = RequestTimeout };
         }
 
-        public async Task<string> GetStatusMarkdownAsync(CancellationToken cancellationToken = default)
+        public async Task<string> GetStatusTextAsync(CancellationToken cancellationToken = default)
         {
             EnsureConfigured();
             await EnsureSessionAsync(cancellationToken);
@@ -72,10 +72,10 @@ namespace Synology.Services
                 throw new InvalidOperationException("无法从 Synology 获取任何状态信息，请检查账号权限以及 DSM 版本。");
             }
 
-            return FormatMarkdown(CreateSnapshot(system, fans, storage));
+            return FormatStatusText(CreateSnapshot(system, fans, storage));
         }
 
-        public async Task<string> GetFanMarkdownAsync(CancellationToken cancellationToken = default)
+        public async Task<string> GetFanTextAsync(CancellationToken cancellationToken = default)
         {
             EnsureConfigured();
             await EnsureSessionAsync(cancellationToken);
@@ -88,7 +88,7 @@ namespace Synology.Services
                 throw new InvalidOperationException("无法从 Synology 获取风扇状态，请检查账号权限以及 DSM 版本。");
             }
 
-            return FormatFanMarkdown(CreateSnapshot(system, fans, null));
+            return FormatFanText(CreateSnapshot(system, fans, null));
         }
 
         public async Task<string> SetFanModeAsync(string mode, CancellationToken cancellationToken = default)
@@ -115,7 +115,7 @@ namespace Synology.Services
             var system = await TryCallApiAsync(SystemApi, "info", cancellationToken);
             var fans = await TryCallApiAsync(FanSpeedApi, "get", cancellationToken);
 
-            return FormatFanChangeMarkdown(before, CreateSnapshot(system, fans, null));
+            return FormatFanChangeText(before, CreateSnapshot(system, fans, null));
         }
 
         private static SynologySnapshot CreateSnapshot(JsonElement? system, JsonElement? fans, JsonElement? storage)
@@ -657,22 +657,22 @@ namespace Synology.Services
             }
         }
 
-        private static string FormatMarkdown(SynologySnapshot snapshot)
+        private static string FormatStatusText(SynologySnapshot snapshot)
         {
             var lines = new List<string>
             {
-                $"## Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 状态",
+                $"Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 状态",
                 string.Empty
             };
 
             if (!string.IsNullOrEmpty(snapshot.FirmwareVersion))
             {
-                lines.Add($"> 固件: {snapshot.FirmwareVersion}");
+                lines.Add($"固件: {snapshot.FirmwareVersion}");
             }
 
             if (!string.IsNullOrEmpty(snapshot.Uptime))
             {
-                lines.Add($"> 运行时间: {FormatUptime(snapshot.Uptime)}");
+                lines.Add($"运行时间: {FormatUptime(snapshot.Uptime)}");
             }
 
             if (lines[^1] != string.Empty)
@@ -680,7 +680,7 @@ namespace Synology.Services
                 lines.Add(string.Empty);
             }
 
-            lines.Add("**CPU**");
+            lines.Add("CPU");
             if (!string.IsNullOrEmpty(snapshot.CpuSeries) || !string.IsNullOrEmpty(snapshot.CpuCores))
             {
                 var cpu = snapshot.CpuSeries ?? string.Empty;
@@ -697,7 +697,7 @@ namespace Synology.Services
             lines.Add(string.Empty);
 
             AppendFanSection(lines, snapshot);
-            lines.Add("**硬盘**");
+            lines.Add("硬盘");
             if (snapshot.Disks.Count == 0)
             {
                 lines.Add("- 温度: 不可用");
@@ -727,14 +727,14 @@ namespace Synology.Services
             }
 
             lines.Add(string.Empty);
-            lines.Add($"> 更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
+            lines.Add($"更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
 
             return string.Join("\n", lines).Trim();
         }
 
         private static void AppendFanSection(List<string> lines, SynologySnapshot snapshot)
         {
-            lines.Add("**风扇**");
+            lines.Add("风扇");
             if (snapshot.Fans.Count == 0)
             {
                 lines.Add("- 转速: 不可用");
@@ -755,25 +755,25 @@ namespace Synology.Services
             lines.Add(string.Empty);
         }
 
-        private static string FormatFanMarkdown(SynologySnapshot snapshot)
+        private static string FormatFanText(SynologySnapshot snapshot)
         {
             var lines = new List<string>
             {
-                $"## Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 风扇",
+                $"Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 风扇",
                 string.Empty
             };
 
             AppendFanSection(lines, snapshot);
-            lines.Add($"> 更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
+            lines.Add($"更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
 
             return string.Join("\n", lines).Trim();
         }
 
-        private static string FormatFanChangeMarkdown(string? previousMode, SynologySnapshot snapshot)
+        private static string FormatFanChangeText(string? previousMode, SynologySnapshot snapshot)
         {
             var lines = new List<string>
             {
-                $"## Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 风扇",
+                $"Synology{(string.IsNullOrEmpty(snapshot.Model) ? string.Empty : $" {snapshot.Model}")} 风扇",
                 string.Empty
             };
 
@@ -783,13 +783,13 @@ namespace Synology.Services
             if (before != null || after != null)
             {
                 lines.Add(before != null && after != null && !string.Equals(before, after, StringComparison.Ordinal)
-                    ? $"> 模式: {before} → {after}"
-                    : $"> 模式: {after ?? before}");
+                    ? $"模式: {before} → {after}"
+                    : $"模式: {after ?? before}");
                 lines.Add(string.Empty);
             }
 
             AppendFanSection(lines, snapshot);
-            lines.Add($"> 更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
+            lines.Add($"更新时间: {snapshot.RetrievedAt:yyyy-MM-dd HH:mm:ss}");
 
             return string.Join("\n", lines).Trim();
         }
