@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using Synology.Models.Configurations;
 using Synology.Services;
 using WeComCommon.Models;
 using WeComCommon.Processors.Interfaces;
@@ -27,13 +29,15 @@ namespace Synology.Processors
         };
 
         private readonly SynologyService SynologyService;
+        private readonly SynologyConfiguration Configuration;
 
-        public SynologyProcessor(SynologyService synologyService)
+        public SynologyProcessor(SynologyService synologyService, IOptions<SynologyConfiguration> options)
         {
             SynologyService = synologyService;
+            Configuration = options.Value;
         }
 
-        public ulong GetProcessorAgentId() => 1000007;
+        public ulong GetProcessorAgentId() => Configuration.AgentId;
 
         public Task<WeComInstanceReply> ReplyMessageAsync(WeComReceiveMessage receiveMessage, WeComService weComService)
         {

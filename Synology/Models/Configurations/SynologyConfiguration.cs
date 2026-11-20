@@ -31,5 +31,11 @@ namespace Synology.Models.Configurations
         /// Device name used for DSM's 2-step verification device token.
         /// </summary>
         public string DeviceName { get; set; } = "WeComMessageService";
+
+        /// <summary>
+        /// WeCom agent ID that routes inbound messages to this processor.
+        /// Must match the Synology app's AgentId in WeComServices:AppConfigurations.
+        /// </summary>
+        public ulong AgentId { get; set; } = 1000007;
     }
 }
